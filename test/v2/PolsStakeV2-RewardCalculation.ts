@@ -213,9 +213,9 @@ describe("PolsStakeV2 : " + filenameHeader, function () {
     this.signers.admin = signers[0];
 
     const stakeArtifact: Artifact = await artifacts.readArtifact("PolsStakeV2");
-    this.stake = <PolsStakeV2>await waffle.deployContract(this.signers.admin, stakeArtifact, [fakeTokenAddress]);
-    await this.stake.deployed();
-    console.log("stake contract deployed to :", this.stake.address);
+    this.stakeV2 = <PolsStakeV2>await waffle.deployContract(this.signers.admin, stakeArtifact, [fakeTokenAddress]);
+    await this.stakeV2.deployed();
+    console.log("stake contract deployed to :", this.stakeV2.address);
   });
 
   /**
@@ -223,25 +223,25 @@ describe("PolsStakeV2 : " + filenameHeader, function () {
    */
 
   it("set unlockedRewardsFactor = 0.5 (= REWARDS_DIV / 2)", async function () {
-    const rewards_div = await this.stake.REWARDS_DIV();
+    const rewards_div = await this.stakeV2.REWARDS_DIV();
     expect(rewards_div).to.gte(2); // should not be 0 or 1
     expect(rewards_div % 2).to.eq(0); // should be an even number to avoid rounding errors
 
     // set unlockedRewardsFactor = 0.5
-    const tx = await this.stake.connect(this.signers.admin).setUnlockedRewardsFactor(rewards_div / 2);
+    const tx = await this.stakeV2.connect(this.signers.admin).setUnlockedRewardsFactor(rewards_div / 2);
     await tx.wait();
 
-    expect(await this.stake.unlockedRewardsFactor()).to.equal(rewards_div / 2);
+    expect(await this.stakeV2.unlockedRewardsFactor()).to.equal(rewards_div / 2);
   });
 
   it("calculates rewards correctly for unlockedRewardsFactor = 0.5", async function () {
     for (var testCase of testCases) {
       console.log(...testCase);
       if (testCase[1] >= 0) {
-        const reward = await this.stake._userClaimableRewardsCalculation(...testCase[0]);
+        const reward = await this.stakeV2._userClaimableRewardsCalculation(...testCase[0]);
         expect(reward).to.eq(testCase[1]);
       } else {
-        await expect(this.stake._userClaimableRewardsCalculation(...testCase[0])).to.be.reverted;
+        await expect(this.stakeV2._userClaimableRewardsCalculation(...testCase[0])).to.be.reverted;
       }
     }
   });
@@ -251,16 +251,16 @@ describe("PolsStakeV2 : " + filenameHeader, function () {
    */
 
   it("set unlockedRewardsFactor = 0", async function () {
-    const tx = await this.stake.connect(this.signers.admin).setUnlockedRewardsFactor(0);
+    const tx = await this.stakeV2.connect(this.signers.admin).setUnlockedRewardsFactor(0);
     await tx.wait();
 
-    expect(await this.stake.unlockedRewardsFactor()).to.equal(0);
+    expect(await this.stakeV2.unlockedRewardsFactor()).to.equal(0);
   });
 
   it("calculates rewards correctly for unlockedRewardsFactor = 0", async function () {
     for (var testCase of testCases_0) {
       console.log(...testCase);
-      const reward = await this.stake._userClaimableRewardsCalculation(...testCase[0]);
+      const reward = await this.stakeV2._userClaimableRewardsCalculation(...testCase[0]);
       expect(reward).to.eq(testCase[1]);
     }
   });

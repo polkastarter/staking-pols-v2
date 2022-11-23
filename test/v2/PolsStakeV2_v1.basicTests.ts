@@ -50,7 +50,7 @@ export function basicTests(_timePeriod: number): void {
     });
 
     it("get lockTime from stake contracts", async function () {
-      const lockTimePeriod = await this.stake.getLockTimePeriod();
+      const lockTimePeriod = await this.stakeV2.getLockTimePeriod();
       expect(lockTimePeriod).to.equal(LOCK_TIME_PERIOD);
     });
 
@@ -90,10 +90,10 @@ export function basicTests(_timePeriod: number): void {
     it("send 1000 reward tokens from admin account to staking contract", async function () {
       const amount = hre.ethers.utils.parseUnits("1000.0", rewardTokenDecimals);
 
-      const tx = await this.rewardToken.connect(this.signers.admin).transfer(this.stake.address, amount);
+      const tx = await this.rewardToken.connect(this.signers.admin).transfer(this.stakeV2.address, amount);
       await tx.wait();
 
-      const balance = await this.rewardToken.balanceOf(this.stake.address);
+      const balance = await this.rewardToken.balanceOf(this.stakeV2.address);
       console.log(
         "staking contract reward token balance = ",
         hre.ethers.utils.formatUnits(balance, rewardTokenDecimals),
@@ -102,31 +102,31 @@ export function basicTests(_timePeriod: number): void {
     });
 
     it("decrease lock time period - setLockTimePeriodDefault()", async function () {
-      const lockTimePeriod = await this.stake.getLockTimePeriod();
+      const lockTimePeriod = await this.stakeV2.getLockTimePeriod();
       console.log("current lockTimePeriod =", lockTimePeriod);
 
-      const tx = await this.stake.connect(this.signers.admin).setLockTimePeriodDefault(lockTimePeriod - 1); // reduce by 1 second
+      const tx = await this.stakeV2.connect(this.signers.admin).setLockTimePeriodDefault(lockTimePeriod - 1); // reduce by 1 second
       await tx.wait();
 
-      const result = await this.stake.getLockTimePeriod();
+      const result = await this.stakeV2.getLockTimePeriod();
       console.log("lockTimePeriod (seconds) = ", result.toString());
       expect(result).to.equal(lockTimePeriod - 1);
     });
 
     /**
-     * @dev `await expect(this.stake.connect(this.signers.admin).setLockTimePeriodDefault(14 * timePeriod)).to.be.reverted;`
+     * @dev `await expect(this.stakeV2.connect(this.signers.admin).setLockTimePeriodDefault(14 * timePeriod)).to.be.reverted;`
      * @dev ... does not work with "real" (test) blockchain over RPC, so we need this work around
      */
     /*
     it("increase lock time period - setLockTimePeriodDefault() - should revert", async function () {
-      // await expect(this.stake.connect(this.signers.admin).setLockTimePeriodDefault(14 * timePeriod)).to.be.reverted; // does not work with remote RPC blockchain
+      // await expect(this.stakeV2.connect(this.signers.admin).setLockTimePeriodDefault(14 * timePeriod)).to.be.reverted; // does not work with remote RPC blockchain
 
       this.timeout(600000);
       let revert = false;
 
       try {
         const options = { gasLimit: 500000 };
-        const tx = await this.stake.connect(this.signers.admin).setLockTimePeriodDefault(14 * timePeriod, options);
+        const tx = await this.stakeV2.connect(this.signers.admin).setLockTimePeriodDefault(14 * timePeriod, options);
         await tx.wait();
       } catch (error: any) {
         // console.log("catched ERROR");
@@ -147,19 +147,19 @@ export function basicTests(_timePeriod: number): void {
     */
 
     it("setRewardToken()", async function () {
-      const tx = await this.stake.connect(this.signers.admin).setRewardToken(this.rewardToken.address);
+      const tx = await this.stakeV2.connect(this.signers.admin).setRewardToken(this.rewardToken.address);
       await tx.wait();
 
-      const rewardToken_address = await this.stake.rewardToken();
-      console.log("this.stake.rewardToken() = ", rewardToken_address);
+      const rewardToken_address = await this.stakeV2.rewardToken();
+      console.log("this.stakeV2.rewardToken() = ", rewardToken_address);
       expect(rewardToken_address).to.equal(this.rewardToken.address);
     });
 
     it("setStakeRewardFactor()", async function () {
-      const tx = await this.stake.connect(this.signers.admin).setStakeRewardFactor(stakeRewardFactor);
+      const tx = await this.stakeV2.connect(this.signers.admin).setStakeRewardFactor(stakeRewardFactor);
       await tx.wait();
 
-      const result = await this.stake.stakeRewardFactor();
+      const result = await this.stakeV2.stakeRewardFactor();
       console.log("stakeRewardFactor = ", result.toString());
       expect(result).to.equal(stakeRewardFactor);
     });
@@ -241,38 +241,38 @@ export function basicTests(_timePeriod: number): void {
       user1BalanceStart = await this.stakeToken.balanceOf(this.signers.user1.address);
       console.log("user1Balance =", hre.ethers.utils.formatUnits(user1BalanceStart, stakeTokenDecimals));
 
-      const tx = await this.stakeToken.connect(this.signers.user1).approve(this.stake.address, user1BalanceStart);
+      const tx = await this.stakeToken.connect(this.signers.user1).approve(this.stakeV2.address, user1BalanceStart);
       await tx.wait();
 
-      const allowance = await this.stakeToken.allowance(this.signers.user1.address, this.stake.address);
+      const allowance = await this.stakeToken.allowance(this.signers.user1.address, this.stakeV2.address);
       console.log("user1 approved allowance   =", hre.ethers.utils.formatUnits(allowance, stakeTokenDecimals));
 
       // at this time the balance of the stake token in the contract should be 0
-      stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
+      stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
       expect(allowance).to.equal(user1BalanceStart, "approval of stake token did not work");
     });
 
     it("staked amount should be 0 at this point", async function () {
       // at this time the balance of the stake token in the contract should be 0
-      stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
+      stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
       expect(stakeBalance).to.equal(0, "user should have a stake balance of 0");
     });
 
     it("user can stake token", async function () {
       console.log("staking now ... stakeAmount =", hre.ethers.utils.formatUnits(stakeAmount, stakeTokenDecimals));
 
-      const tx = await this.stake.connect(this.signers.user1).stake(stakeAmount);
+      const tx = await this.stakeV2.connect(this.signers.user1).stake(stakeAmount);
       await tx.wait();
 
       blocktime = await getTimestamp();
       console.log("blocktime =", blocktime.toString());
-      const stakeTime = await this.stake.connect(this.signers.user1).stakeTime_msgSender();
+      const stakeTime = await this.stakeV2.connect(this.signers.user1).stakeTime_msgSender();
       console.log("stakeTime =", stakeTime.toString());
       expect(Math.abs(blocktime - stakeTime)).lte(60, "stakeTime not within 60 seconds of current blocktime");
 
       stakeTime1 = blocktime;
 
-      stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
+      stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
       console.log("stakeBalance =", hre.ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
       expect(stakeBalance).to.equal(stakeAmount, "stake contract does not reflect staked amount");
 
@@ -283,8 +283,8 @@ export function basicTests(_timePeriod: number): void {
     });
 
     it("verify getUnlockTime_msgSender()", async function () {
-      const unlockTime = await this.stake.connect(this.signers.user1).getUnlockTime_msgSender();
-      const stakeTime = await this.stake.connect(this.signers.user1).stakeTime_msgSender();
+      const unlockTime = await this.stakeV2.connect(this.signers.user1).getUnlockTime_msgSender();
+      const stakeTime = await this.stakeV2.connect(this.signers.user1).stakeTime_msgSender();
       console.log("unlockTime =", unlockTime);
       console.log("stakeTime  =", stakeTime);
       console.log("LOCK_TIME_PERIOD =", LOCK_TIME_PERIOD);
@@ -305,30 +305,30 @@ export function basicTests(_timePeriod: number): void {
        * LockTimePeriod of 7 timePeriods has not expired yet - withdraw should fail
        * https://ethereum-waffle.readthedocs.io/en/latest/matchers.html?highlight=revert#revert
        */
-      await expect(this.stake.connect(this.signers.user1).withdrawAll()).to.be.reverted;
+      await expect(this.stakeV2.connect(this.signers.user1).withdrawAll()).to.be.reverted;
     });
 
     it("no accumulated rewards while staking for the first time", async function () {
-      expect(await this.stake.connect(this.signers.user1).userAccumulatedRewards_msgSender()).to.equal(
+      expect(await this.stakeV2.connect(this.signers.user1).userAccumulatedRewards_msgSender()).to.equal(
         0,
         "user should not have any accumulated rewards",
       );
     });
 
     it("user should have claimable rewards after staking for some time", async function () {
-      const stakeTime = await this.stake.connect(this.signers.user1).stakeTime_msgSender();
+      const stakeTime = await this.stakeV2.connect(this.signers.user1).stakeTime_msgSender();
       console.log("stakeTime =", stakeTime.toString());
 
       const blockTime = await blockTimestamp();
       console.log("blockTime =", blockTime);
 
-      const stakeRewardEndTime = await this.stake.stakeRewardEndTime();
+      const stakeRewardEndTime = await this.stakeV2.stakeRewardEndTime();
       console.log("stakeRewardEndTime =", stakeRewardEndTime.toString());
 
       const userClaimableRewards_expected = stakeAmount.mul(blockTime - stakeTime1);
       console.log("userClaimableRewards_expected =", userClaimableRewards_expected.toString());
 
-      userClaimableRewards_contract = await this.stake.connect(this.signers.user1).userClaimableRewards_msgSender();
+      userClaimableRewards_contract = await this.stakeV2.connect(this.signers.user1).userClaimableRewards_msgSender();
       console.log("userClaimableRewards_contract =", userClaimableRewards_contract.toString());
 
       difference = userClaimableRewards_contract.sub(userClaimableRewards_expected).div(stakeBalance).abs();
@@ -340,12 +340,12 @@ export function basicTests(_timePeriod: number): void {
       // stake same amount again - lock period starts again
       console.log("staking now ... stakeAmount =", hre.ethers.utils.formatUnits(stakeAmount, stakeTokenDecimals));
 
-      const tx = await this.stake.connect(this.signers.user1).stake(stakeAmount);
+      const tx = await this.stakeV2.connect(this.signers.user1).stake(stakeAmount);
       await tx.wait();
 
       stakeTime2 = await getTimestamp();
 
-      stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
+      stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
       console.log("stakeBalance =", hre.ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
       expect(stakeBalance).to.equal(stakeAmount.mul(2), "stake contract does not reflect staked amount");
 
@@ -365,7 +365,7 @@ export function basicTests(_timePeriod: number): void {
       const blockTime = await blockTimestamp();
       const userAccumulatedRewards_expected = stakeAmount.mul(blockTime - stakeTime1);
 
-      const userAccumulatedRewards_contract = await this.stake
+      const userAccumulatedRewards_contract = await this.stakeV2
         .connect(this.signers.user1)
         .userAccumulatedRewards_msgSender();
 
@@ -385,7 +385,7 @@ export function basicTests(_timePeriod: number): void {
        * After the 2nd staking, claimable reward should have been reset to 0
        * At most 20 sec should have been passed since then, accumulating a small userClaimableRewards balance
        */
-      userClaimableRewards_contract = await this.stake.connect(this.signers.user1).userClaimableRewards_msgSender();
+      userClaimableRewards_contract = await this.stakeV2.connect(this.signers.user1).userClaimableRewards_msgSender();
 
       expect(userClaimableRewards_contract).to.lte(
         stakeBalance.mul(20),
@@ -406,7 +406,7 @@ export function basicTests(_timePeriod: number): void {
       const userClaimableRewards_expected = stakeAmount.mul(2).mul(blockTime - stakeTime2);
       console.log("userClaimableRewards_expected =", userClaimableRewards_expected.toString());
 
-      userClaimableRewards_contract = await this.stake.connect(this.signers.user1).userClaimableRewards_msgSender();
+      userClaimableRewards_contract = await this.stakeV2.connect(this.signers.user1).userClaimableRewards_msgSender();
       console.log("userClaimableRewards_contract =", userClaimableRewards_contract.toString());
 
       difference = userClaimableRewards_contract.sub(userClaimableRewards_expected).div(stakeBalance).abs();
@@ -418,10 +418,10 @@ export function basicTests(_timePeriod: number): void {
       const lastStakeBalance = stakeBalance;
 
       // withdraw one quarter of staked tokens
-      const tx = await this.stake.connect(this.signers.user1).withdraw(lastStakeBalance.div(4));
+      const tx = await this.stakeV2.connect(this.signers.user1).withdraw(lastStakeBalance.div(4));
       await tx.wait();
 
-      stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
+      stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
 
       const remainStakeBalance = lastStakeBalance.sub(lastStakeBalance.div(4));
 
@@ -435,7 +435,7 @@ export function basicTests(_timePeriod: number): void {
       console.log("**************************** UNSTAKE ****************************");
 
       // UNSTAKE - withdraw all remaining staked tokens
-      const tx2 = await this.stake.connect(this.signers.user1).withdrawAll();
+      const tx2 = await this.stakeV2.connect(this.signers.user1).withdrawAll();
       await tx2.wait();
 
       blocktime = await getTimestamp();
@@ -446,7 +446,7 @@ export function basicTests(_timePeriod: number): void {
       console.log(">>>>>> expectedRewards =", expectedRewards.toString());
 
       // stake amount should be zero
-      stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
+      stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
       expect(stakeBalance).to.equal(0, "stake amount should be 0");
 
       // user1 balance should be back to original amount
@@ -463,16 +463,16 @@ export function basicTests(_timePeriod: number): void {
       console.log("simulated time : seconds / timePeriods", timeRelative, timeRelative / timePeriod);
       console.log("----------------------------------------------------------------------------");
 
-      const userClaimableRewards = await this.stake.connect(this.signers.user1).userClaimableRewards_msgSender();
+      const userClaimableRewards = await this.stakeV2.connect(this.signers.user1).userClaimableRewards_msgSender();
       console.log(">>>>>> userClaimableRewards   =", userClaimableRewards.toString());
 
-      const userAccumulatedRewards = await this.stake.connect(this.signers.user1).userAccumulatedRewards_msgSender();
+      const userAccumulatedRewards = await this.stakeV2.connect(this.signers.user1).userAccumulatedRewards_msgSender();
       console.log(">>>>>> userAccumulatedRewards =", userAccumulatedRewards.toString());
 
-      const userTotalRewards = await this.stake.connect(this.signers.user1).userTotalRewards_msgSender();
+      const userTotalRewards = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       console.log(">>>>>> userTotalRewards       =", userTotalRewards.toString());
 
-      const earnedRewardTokens = await this.stake.connect(this.signers.user1).getEarnedRewardTokens_msgSender();
+      const earnedRewardTokens = await this.stakeV2.connect(this.signers.user1).getEarnedRewardTokens_msgSender();
       console.log(">>>>>> earnedRewardTokens     =", earnedRewardTokens.toString());
 
       // >>>>>>>>>>>>>>>>  WAIT 5 time periods - user should not receive any additional rewards <<<<<<<<<<<<<<<<<<<<<<
@@ -489,18 +489,20 @@ export function basicTests(_timePeriod: number): void {
       console.log("simulated time : seconds / timePeriods", timeRelative, timeRelative / timePeriod);
       console.log("----------------------------------------------------------------------------");
 
-      const userClaimableRewards_later = await this.stake.connect(this.signers.user1).userClaimableRewards_msgSender();
+      const userClaimableRewards_later = await this.stakeV2
+        .connect(this.signers.user1)
+        .userClaimableRewards_msgSender();
       console.log(">>>>>> userClaimableRewards_later   =", userClaimableRewards_later.toString());
 
-      const userAccumulatedRewards_later = await this.stake
+      const userAccumulatedRewards_later = await this.stakeV2
         .connect(this.signers.user1)
         .userAccumulatedRewards_msgSender();
       console.log(">>>>>> userAccumulatedRewards_later =", userAccumulatedRewards_later.toString());
 
-      const userTotalRewards_later = await this.stake.connect(this.signers.user1).userTotalRewards_msgSender();
+      const userTotalRewards_later = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       console.log(">>>>>> userTotalRewards_later       =", userTotalRewards_later.toString());
 
-      const earnedRewardTokens_later = await this.stake.connect(this.signers.user1).getEarnedRewardTokens_msgSender();
+      const earnedRewardTokens_later = await this.stakeV2.connect(this.signers.user1).getEarnedRewardTokens_msgSender();
       console.log(">>>>>> earnedRewardTokens_later     =", earnedRewardTokens_later.toString());
 
       expect(userClaimableRewards_later).to.equal(userClaimableRewards, "userClaimableRewards changed after unstaking");
@@ -516,7 +518,7 @@ export function basicTests(_timePeriod: number): void {
        * After unstaking, claimable rewards should have been reset to 0 ...
        * and no rewards should have been earned in the timePeriods thereafter
        */
-      expect(await this.stake.connect(this.signers.user1).userClaimableRewards_msgSender()).to.equal(
+      expect(await this.stakeV2.connect(this.signers.user1).userClaimableRewards_msgSender()).to.equal(
         0,
         "claimable rewards should stay at 0 and not increase after full unstake",
       );
@@ -530,7 +532,7 @@ export function basicTests(_timePeriod: number): void {
 
       const userAccumulatedRewards_expected = expectedRewards; // stakeAmount.mul(stakeTime2 - stakeTime1).add( stakeAmount.mul(2).mul(blocktime - stakeTime2) );
 
-      const userAccumulatedRewards_contract = await this.stake
+      const userAccumulatedRewards_contract = await this.stakeV2
         .connect(this.signers.user1)
         .userAccumulatedRewards_msgSender();
 
@@ -543,27 +545,27 @@ export function basicTests(_timePeriod: number): void {
       /**
        * Check userTotalRewards, should equal accumulatedRewards at this stage
        */
-      const userTotalRewards_contract = await this.stake.connect(this.signers.user1).userTotalRewards_msgSender();
+      const userTotalRewards_contract = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       difference = userAccumulatedRewards_contract.sub(userTotalRewards_contract).div(lastStakeBalance).abs();
       console.log("userTotalRewards       : difference contract vers expected =", difference.toString());
       expect(difference).to.lte(1, "userTotalRewards is too far off");
     });
 
     it("after withdrawAll, user should not be able to withdraw any additional tokens", async function () {
-      await expect(this.stake.connect(this.signers.user1).withdraw(1)).to.be.reverted;
+      await expect(this.stakeV2.connect(this.signers.user1).withdraw(1)).to.be.reverted;
     });
 
     /**
      * test for reward token allocation manipulaion - after withdrawAll()
      */
     it("after withdrawAll, user should not be able to increase rewards by calling withdraw(0)", async function () {
-      const totalRewards_before = await this.stake.connect(this.signers.user1).userTotalRewards_msgSender();
+      const totalRewards_before = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       console.log("totalRewards_before =", hre.ethers.utils.formatUnits(totalRewards_before, rewardTokenDecimals));
 
-      await expect(this.stake.connect(this.signers.user1).withdraw(0)).to.be.reverted;
+      await expect(this.stakeV2.connect(this.signers.user1).withdraw(0)).to.be.reverted;
       // await tx2.wait();
 
-      const totalRewards_after = await this.stake.connect(this.signers.user1).userTotalRewards_msgSender();
+      const totalRewards_after = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       console.log("totalRewards_after  =", hre.ethers.utils.formatUnits(totalRewards_after, rewardTokenDecimals));
 
       expect(totalRewards_after).to.equal(totalRewards_before);
@@ -584,7 +586,7 @@ export function basicTests(_timePeriod: number): void {
         hre.ethers.utils.formatUnits(userRewardTokenBalance_before, rewardTokenDecimals),
       );
 
-      const tx = await this.stake.connect(this.signers.user1).claim();
+      const tx = await this.stakeV2.connect(this.signers.user1).claim();
       await tx.wait();
 
       const userRewardTokenBalance_after = await this.rewardToken.balanceOf(this.signers.user1.address);
@@ -618,13 +620,13 @@ export function basicTests(_timePeriod: number): void {
      * admin will receive all reward tokens left in the staking contract
      */
     it("admin can disable reward token and will receive all reward tokens left", async function () {
-      const stakeRewardTokenBalance_before = await this.stake.getRewardTokenBalance();
+      const stakeRewardTokenBalance_before = await this.stakeV2.getRewardTokenBalance();
       const adminRewardTokenBalance_before = await this.rewardToken.balanceOf(this.signers.admin.address);
 
-      const tx = await this.stake.connect(this.signers.admin).setRewardToken(hre.ethers.constants.AddressZero);
+      const tx = await this.stakeV2.connect(this.signers.admin).setRewardToken(hre.ethers.constants.AddressZero);
       await tx.wait();
 
-      const stakeRewardTokenBalance_after = await this.stake.getRewardTokenBalance();
+      const stakeRewardTokenBalance_after = await this.stakeV2.getRewardTokenBalance();
       const adminRewardTokenBalance_after = await this.rewardToken.balanceOf(this.signers.admin.address);
 
       expect(stakeRewardTokenBalance_after).to.equal(0);

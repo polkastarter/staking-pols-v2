@@ -79,9 +79,9 @@ describe("PolsStakeV2 : " + filenameHeader, function () {
 
     // deploy staking contract
     const stakeArtifact: Artifact = await hre.artifacts.readArtifact("PolsStakeV2");
-    this.stake = <PolsStakeV2>await deployContract(this.signers.admin, stakeArtifact, [this.stakeToken.address]);
-    await this.stake.deployed();
-    console.log("stake contract deployed to :", this.stake.address);
+    this.stakeV2 = <PolsStakeV2>await deployContract(this.signers.admin, stakeArtifact, [this.stakeToken.address]);
+    await this.stakeV2.deployed();
+    console.log("stake contract deployed to :", this.stakeV2.address);
   });
 
   // set to v2 mode
@@ -100,12 +100,12 @@ describe("PolsStakeV2 : " + filenameHeader, function () {
       const amount = "10" + "0".repeat(18);
       const balance = await this.otherToken.balanceOf(this.signers.admin.address);
 
-      const tx1 = await this.otherToken.connect(this.signers.admin).transfer(this.stake.address, amount);
+      const tx1 = await this.otherToken.connect(this.signers.admin).transfer(this.stakeV2.address, amount);
       await tx1.wait();
 
       expect(await this.otherToken.balanceOf(this.signers.admin.address)).to.equal(balance.sub(amount));
 
-      const tx2 = await this.stake.connect(this.signers.admin).removeOtherERC20Tokens(this.otherToken.address);
+      const tx2 = await this.stakeV2.connect(this.signers.admin).removeOtherERC20Tokens(this.otherToken.address);
       await tx2.wait();
 
       expect(await this.otherToken.balanceOf(this.signers.admin.address)).to.equal(balance);
@@ -117,46 +117,46 @@ describe("PolsStakeV2 : " + filenameHeader, function () {
       const stakeArtifact: Artifact = await hre.artifacts.readArtifact("PolsStakeV2");
       this.stake2 = <PolsStakeV2>await deployContract(this.signers.admin, stakeArtifact, [this.stakeToken.address]);
       await this.stake2.deployed();
-      // console.log("stake1 contract is at       :", this.stake.address);
+      // console.log("stake1 contract is at       :", this.stakeV2.address);
       // console.log("stake2 contract deployed to :", this.stake2.address);
     });
 
     it("grant stake2 BURNER_ROLE for stake1 contract", async function () {
-      const BURNER_ROLE = await this.stake.BURNER_ROLE();
+      const BURNER_ROLE = await this.stakeV2.BURNER_ROLE();
 
-      const tx1 = await this.stake.connect(this.signers.admin).grantRole(BURNER_ROLE, this.stake2.address);
+      const tx1 = await this.stakeV2.connect(this.signers.admin).grantRole(BURNER_ROLE, this.stake2.address);
       await tx1.wait();
 
-      expect(await this.stake.hasRole(BURNER_ROLE, this.stake2.address)).to.be.true;
+      expect(await this.stakeV2.hasRole(BURNER_ROLE, this.stake2.address)).to.be.true;
     });
 
     it("set stake1 contract address within stake2", async function () {
-      const tx1 = await this.stake2.connect(this.signers.admin).setPrevPolsStaking(this.stake.address);
+      const tx1 = await this.stake2.connect(this.signers.admin).setPrevPolsStaking(this.stakeV2.address);
       await tx1.wait();
 
-      expect(await this.stake2.prevPolsStaking()).to.eq(this.stake.address);
+      expect(await this.stake2.prevPolsStaking()).to.eq(this.stakeV2.address);
     });
 
     it("user1 migrates accumulated rewards from stake1 to stake2 ", async function () {
-      const accumulatedRewards = await this.stake.userAccumulatedRewards(this.signers.user1.address);
+      const accumulatedRewards = await this.stakeV2.userAccumulatedRewards(this.signers.user1.address);
       expect(await this.stake2.userAccumulatedRewards(this.signers.user1.address)).to.eq(0);
 
       const tx2 = await this.stake2.connect(this.signers.user1).migrateRewards_msgSender();
       await tx2.wait();
 
-      expect(await this.stake.userAccumulatedRewards(this.signers.user1.address)).to.eq(0);
+      expect(await this.stakeV2.userAccumulatedRewards(this.signers.user1.address)).to.eq(0);
       expect(await this.stake2.userAccumulatedRewards(this.signers.user1.address)).to.eq(accumulatedRewards);
     });
 
     it("calling migrateRewards a 2nd time should not work and should not add any rewards in stake2 ", async function () {
       const accumulatedRewards = await this.stake2.userAccumulatedRewards(this.signers.user1.address);
-      expect(await this.stake.userAccumulatedRewards(this.signers.user1.address)).to.eq(0);
+      expect(await this.stakeV2.userAccumulatedRewards(this.signers.user1.address)).to.eq(0);
 
       await expect(this.stake2.connect(this.signers.user1).migrateRewards_msgSender()).to.be.revertedWith(
         "no accumulated rewards",
       );
 
-      expect(await this.stake.userAccumulatedRewards(this.signers.user1.address)).to.eq(0);
+      expect(await this.stakeV2.userAccumulatedRewards(this.signers.user1.address)).to.eq(0);
       expect(await this.stake2.userAccumulatedRewards(this.signers.user1.address)).to.eq(accumulatedRewards);
     });
   });

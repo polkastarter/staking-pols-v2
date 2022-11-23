@@ -7,7 +7,7 @@ import { RewardToken } from "../../typechain/RewardToken";
 import { PolsStakeV2 } from "../../typechain/PolsStakeV2";
 
 import { Signers } from "../../types";
-import { basicTests } from "../v1/PolsStakeV1.basicTests";
+import { basicTests } from "./PolsStakeV2_v1.basicTests";
 
 import * as path from "path";
 
@@ -75,9 +75,9 @@ describe("PolsStakeV2 : " + filenameHeader, function () {
 
     // deploy staking contract
     const stakeArtifact: Artifact = await hre.artifacts.readArtifact("PolsStakeV2");
-    this.stake = <PolsStakeV2>await deployContract(this.signers.admin, stakeArtifact, [this.stakeToken.address]);
-    await this.stake.deployed();
-    console.log("stake contract deployed to :", this.stake.address);
+    this.stakeV2 = <PolsStakeV2>await deployContract(this.signers.admin, stakeArtifact, [this.stakeToken.address]);
+    await this.stakeV2.deployed();
+    console.log("stake contract deployed to :", this.stakeV2.address);
   });
 
   basicTests(timePeriod);

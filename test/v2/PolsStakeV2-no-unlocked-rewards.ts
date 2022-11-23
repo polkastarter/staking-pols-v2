@@ -78,9 +78,9 @@ describe("PolsStakeV2 : " + filenameHeader, function () {
 
     // deploy staking contract
     const stakeArtifact: Artifact = await hre.artifacts.readArtifact("PolsStakeV2");
-    this.stake = <PolsStakeV2>await deployContract(this.signers.admin, stakeArtifact, [this.stakeToken.address]);
-    await this.stake.deployed();
-    console.log("stake contract deployed to :", this.stake.address);
+    this.stakeV2 = <PolsStakeV2>await deployContract(this.signers.admin, stakeArtifact, [this.stakeToken.address]);
+    await this.stakeV2.deployed();
+    console.log("stake contract deployed to :", this.stakeV2.address);
   });
 
   // set to v2 mode
@@ -99,12 +99,12 @@ describe("PolsStakeV2 : " + filenameHeader, function () {
       const amount = "10" + "0".repeat(18);
       const balance = await this.otherToken.balanceOf(this.signers.admin.address);
 
-      const tx1 = await this.otherToken.connect(this.signers.admin).transfer(this.stake.address, amount);
+      const tx1 = await this.otherToken.connect(this.signers.admin).transfer(this.stakeV2.address, amount);
       await tx1.wait();
 
       expect(await this.otherToken.balanceOf(this.signers.admin.address)).to.equal(balance.sub(amount));
 
-      const tx2 = await this.stake.connect(this.signers.admin).removeOtherERC20Tokens(this.otherToken.address);
+      const tx2 = await this.stakeV2.connect(this.signers.admin).removeOtherERC20Tokens(this.otherToken.address);
       await tx2.wait();
 
       expect(await this.otherToken.balanceOf(this.signers.admin.address)).to.equal(balance);
