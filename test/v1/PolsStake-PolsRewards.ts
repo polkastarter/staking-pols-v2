@@ -2,12 +2,12 @@ import hre from "hardhat";
 import { Artifact } from "hardhat/types";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
-import { PolkastarterToken } from "../typechain/PolkastarterToken";
-import { RewardToken } from "../typechain/RewardToken";
-import { ERC20 } from "../typechain/ERC20";
-import { PolsStake } from "../typechain/PolsStake";
+import { PolkastarterToken } from "../../typechain/PolkastarterToken";
+import { RewardToken } from "../../typechain/RewardToken";
+import { ERC20 } from "../../typechain/ERC20";
+import { PolsStake } from "../../typechain/PolsStake";
 
-import { Signers } from "../types";
+import { Signers } from "../../types";
 import { basicTests } from "./PolsStake.basicTests";
 import { expect } from "chai";
 import * as path from "path";

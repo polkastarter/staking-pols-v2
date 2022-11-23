@@ -2,11 +2,11 @@ import hre from "hardhat";
 import { Artifact } from "hardhat/types";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
-import { PolkastarterToken } from "../typechain/PolkastarterToken";
-import { RewardToken } from "../typechain/RewardToken";
-import { PolsStake } from "../typechain/PolsStake";
+import { PolkastarterToken } from "../../typechain/PolkastarterToken";
+import { RewardToken } from "../../typechain/RewardToken";
+import { PolsStake } from "../../typechain/PolsStake";
 
-import { Signers } from "../types";
+import { Signers } from "../../types";
 import { basicTests } from "./PolsStake.basicTests";
 
 import * as path from "path";
