@@ -10,7 +10,7 @@ import { BigNumber, BigNumberish } from "ethers";
 import { Logger } from "@ethersproject/logger";
 import { toUtf8Bytes } from "ethers/lib/utils";
 
-import { timePeriod, getTimestamp, moveTime, waitTime, setTime, consoleLog_timestamp } from "./libs/BlockTimeHelper";
+import { timePeriod, getTimestamp, moveTime, waitTime, setTime, consoleLog_timestamp } from "../libs/BlockTimeHelper";
 
 const DAYS = 24 * 60 * 60;
 const DECIMALS = 18;
@@ -20,7 +20,7 @@ const TIMEOUT_BLOCKCHAIN_ms = 10 * 60 * 1000; // 10 minutes
 
 const REWARDS_DIV = 1_000_000;
 
-export function basicTestsV3(
+export function basicTestsV2(
   _timePeriod: number,
   _lockedRewardsEnabled: boolean,
   _unlockedRewardsFactor: number,
@@ -45,7 +45,7 @@ export function basicTestsV3(
 
   const filenameHeader = path.basename(__filename).concat(" ").padEnd(80, "=").concat("\n");
 
-  describe("PolsStake : " + filenameHeader, function () {
+  describe("PolsStakeV2 : " + filenameHeader, function () {
     if (hre.network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms); // setup timeout to 5 min
 
     it("stake token should have 18 decimals", async function () {

@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"; // OZ contract
 
 import "./IPolsStakeMigrate.sol";
 
-contract PolsStake is AccessControl, ReentrancyGuard {
+contract PolsStakeV2 is AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
     // using Strings for uint256; // DEBUG ONLY
 

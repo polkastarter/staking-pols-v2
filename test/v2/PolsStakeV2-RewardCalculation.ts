@@ -1,12 +1,12 @@
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { artifacts, ethers, waffle } from "hardhat";
 import type { Artifact } from "hardhat/types";
-import { Signers } from "../types";
+import { Signers } from "../../types";
 import { expect } from "chai";
 import { BigNumber, BigNumberish } from "ethers";
 import * as path from "path";
 
-import { PolsStake } from "../typechain/PolsStake";
+import { PolsStakeV2 } from "../../typechain/PolsStakeV2";
 
 const fakeTokenAddress = "1".repeat(40);
 const days = 24 * 60 * 60;
@@ -206,14 +206,14 @@ const testCases_0: [Parameter, BigNumberish][] = [
 ];
 
 const filenameHeader = path.basename(__filename).concat(" ").padEnd(80, "=").concat("\n");
-describe("PolsStake : " + filenameHeader, function () {
+describe("PolsStakeV2 : " + filenameHeader, function () {
   before(async function () {
     this.signers = {} as Signers;
     const signers: SignerWithAddress[] = await ethers.getSigners();
     this.signers.admin = signers[0];
 
-    const stakeArtifact: Artifact = await artifacts.readArtifact("PolsStake");
-    this.stake = <PolsStake>await waffle.deployContract(this.signers.admin, stakeArtifact, [fakeTokenAddress]);
+    const stakeArtifact: Artifact = await artifacts.readArtifact("PolsStakeV2");
+    this.stake = <PolsStakeV2>await waffle.deployContract(this.signers.admin, stakeArtifact, [fakeTokenAddress]);
     await this.stake.deployed();
     console.log("stake contract deployed to :", this.stake.address);
   });

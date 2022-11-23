@@ -1,15 +1,15 @@
 import hre from "hardhat";
-import { expect } from "chai";
 import { Artifact } from "hardhat/types";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 
 import { PolkastarterToken } from "../typechain/PolkastarterToken";
 import { RewardToken } from "../typechain/RewardToken";
+import { ERC20 } from "../typechain/ERC20";
 import { PolsStake } from "../typechain/PolsStake";
 
 import { Signers } from "../types";
-import { basicTestsV3 } from "./PolsStake-v3.basicTests";
-
+import { basicTests } from "./PolsStakeV1.basicTests";
+import { expect } from "chai";
 import * as path from "path";
 
 // https://ethereum-waffle.readthedocs.io
@@ -26,16 +26,14 @@ const PERIOD_BLOCKCHAIN = 60; // 1 minute on "real" blockchains
 const timePeriod = hre.network.name == "hardhat" ? PERIOD_HARDHAT : PERIOD_BLOCKCHAIN;
 const lockPeriod = 7 * timePeriod;
 
-const REWARDS_DIV = 1_000_000;
-
 const TIMEOUT_BLOCKCHAIN_ms = 10 * 60 * 1000; // 10 minutes
 
 const filenameHeader = path.basename(__filename).concat(" ").padEnd(80, "=").concat("\n");
 
 describe("PolsStake : " + filenameHeader, function () {
-  before(async function () {
-    if (hre.network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms);
+  if (hre.network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms);
 
+  before(async function () {
     this.signers = {} as Signers;
     const signers: SignerWithAddress[] = await hre.ethers.getSigners();
     this.signers.admin = signers[0];
@@ -70,11 +68,13 @@ describe("PolsStake : " + filenameHeader, function () {
     await this.stakeToken.deployed();
     console.log("stakeToken     deployed to :", this.stakeToken.address);
 
-    // deploy reward token
+    this.rewardToken = this.stakeToken;
+
+    // deploy other token (use Reward Token contract)
     const rewardTokenArtifact: Artifact = await hre.artifacts.readArtifact("RewardToken");
-    this.rewardToken = <RewardToken>await deployContract(this.signers.admin, rewardTokenArtifact, []);
-    await this.rewardToken.deployed();
-    console.log("rewardToken    deployed to :", this.rewardToken.address);
+    this.otherToken = <RewardToken>await deployContract(this.signers.admin, rewardTokenArtifact, []);
+    await this.otherToken.deployed();
+    console.log("otherToken     deployed to :", this.otherToken.address);
 
     // deploy staking contract
     const stakeArtifact: Artifact = await hre.artifacts.readArtifact("PolsStake");
@@ -83,19 +83,12 @@ describe("PolsStake : " + filenameHeader, function () {
     console.log("stake contract deployed to :", this.stake.address);
   });
 
-  // set to v3 mode
-  // lockedRewardsEnabled  = true
-  // unlockedRewardsFactor = none
-  basicTestsV3(timePeriod, true, 0);
+  basicTests(timePeriod);
 
-  describe("test : removeOtherERC20Tokens()", function () {
+  describe("test removeOtherERC20Tokens()", function () {
+    if (hre.network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms);
+
     it("otherToken is accidently being send directly to staking contract => recover", async function () {
-      // deploy other token (use Reward Token contract)
-      const rewardTokenArtifact: Artifact = await hre.artifacts.readArtifact("RewardToken");
-      this.otherToken = <RewardToken>await deployContract(this.signers.admin, rewardTokenArtifact, []);
-      await this.otherToken.deployed();
-      console.log("otherToken     deployed to :", this.otherToken.address);
-
       const amount = "10" + "0".repeat(18);
       const balance = await this.otherToken.balanceOf(this.signers.admin.address);
 
