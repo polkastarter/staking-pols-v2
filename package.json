@@ -4,7 +4,7 @@
   "version": "v3.0.0",
   "author": {
     "name": "Polkastarter",
-    "url": "https://github.com/polkastarter/staking-pols"
+    "url": "https://github.com/polkastarter/staking-pols-v2"
   },
   "devDependencies": {
     "@codechecks/client": "^0.1.11",
