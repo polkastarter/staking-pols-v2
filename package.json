@@ -1,5 +1,5 @@
 {
-  "name": "PolsStake",
+  "name": "PolsStakeV2",
   "description": "staking contract with various time lock options and time based upfront rewards",
   "version": "v3.0.0",
   "author": {
