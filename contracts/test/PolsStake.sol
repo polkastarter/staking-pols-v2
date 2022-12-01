@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol"; // DEBUG ONLY
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol"; // OZ contracts v4
@@ -320,11 +320,17 @@ contract PolsStake is AccessControl, ReentrancyGuard {
      * @return amount of tokens sent to user's account
      */
     function _withdraw(uint256 amount) internal returns (uint256) {
+        console.log("StakeV1.withdraw()");
+        console.log("StakeV1 address =", address(this));
+        console.log("msg.sender      =", msg.sender);
+        console.log("amount          =", amount);
+
         require(amount > 0, "amount to withdraw not > 0");
         require(block.timestamp > getUnlockTime(msg.sender), "staked tokens are still locked");
 
         User storage user = _updateRewards(msg.sender); // update rewards and return reference to user
 
+        console.log("staked balance  =", user.stakeAmount);
         require(amount <= user.stakeAmount, "withdraw amount > staked amount");
         user.stakeAmount -= toUint160(amount);
         tokenTotalStaked -= amount;

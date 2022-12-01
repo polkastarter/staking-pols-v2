@@ -8,5 +8,7 @@ interface IPolsStakeMigrate {
 
     function burnRewards(address _staker, uint256 _amount) external;
 
-    // function userTotalRewards(address _staker) external view returns (uint256);
+    function userTotalRewards(address _staker) external view returns (uint256);
+
+    function withdrawAll() external;
 }

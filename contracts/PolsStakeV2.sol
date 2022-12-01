@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.17;
 
-// import "hardhat/console.sol"; // DEBUG ONLY
+import "hardhat/console.sol"; // DEBUG ONLY
 // import "@openzeppelin/contracts/utils/Strings.sol"; // DEBUG ONLY
 
 import "@openzeppelin/contracts/access/AccessControl.sol"; // OZ contracts v4
@@ -16,7 +16,11 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
     // using Strings for uint256; // DEBUG ONLY
 
     // bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
-    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+    bytes32 public constant REWARDS_BURNER_ROLE = keccak256("REWARDS_BURNER_ROLE");
+    bytes32 public constant REWARDS_MINTER_ROLE = keccak256("REWARDS_MINTER_ROLE");
+
+    uint48 public constant MAX_TIME = type(uint48).max; // = 2^48 - 1
+    uint32 public constant REWARDS_DIV = 1_000_000;
 
     event Stake(
         address indexed account,
@@ -39,15 +43,13 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
     event StakeRewardFactorChanged(uint256 stakeRewardFactor);
     event StakeRewardEndTimeChanged(uint48 stakeRewardEndTime);
     event RewardsBurned(address indexed staker, uint256 amount);
+    event RewardsMinted(address indexed staker, uint256 amount);
     event ERC20TokensRemoved(address indexed tokenAddress, address indexed receiver, uint256 amount);
-
-    uint48 public constant MAX_TIME = type(uint48).max; // = 2^48 - 1
-    uint32 public constant REWARDS_DIV = 1_000_000;
 
     struct User {
         uint48 stakeTime;
         uint48 unlockTime;
-        uint32 stakePeriodRewardFactor; // 1.0 = 1 * REWARDS_DIV
+        uint32 stakePeriodRewardsDiv; // 1.0 = 1 * REWARDS_DIV
         uint128 stakeAmount;
         uint256 accumulatedRewards;
     }
@@ -68,6 +70,8 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
      *     but the only guarantee is that it will be somewhere between the timestamps ...
      *     of two consecutive blocks in the canonical chain."
      *    https://docs.soliditylang.org/en/v0.7.6/cheatsheet.html?highlight=block.timestamp#global-variables
+     * 4) "if the scale of your time-dependent event can vary by 15 seconds and maintain integrity, it is safe to use a block.timestamp"
+     *    https://consensys.net/blog/developers/solidity-best-practices-for-smart-contract-security/
      */
 
     uint32[] public lockTimePeriod = [0, 7 days, 14 days, 30 days, 60 days, 90 days, 180 days, 365 days]; // time period tokens are locked after staking
@@ -280,10 +284,10 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
      * @param _lockTimePeriod array of lock times the user can choose from when staking
      * @param _lockTimePeriodRewardFactor array of factors reward factors for each option
      */
-    function setLockTimePeriodOptions(uint32[] calldata _lockTimePeriod, uint32[] calldata _lockTimePeriodRewardFactor)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    function setLockTimePeriodOptions(
+        uint32[] calldata _lockTimePeriod,
+        uint32[] calldata _lockTimePeriodRewardFactor
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_lockTimePeriodRewardFactor.length == 0) {
             delete lockTimePeriodRewardFactor;
             lockTimePeriodRewardFactor.push(0); // index 0 not used
@@ -318,16 +322,25 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
         emit StakeRewardEndTimeChanged(_stakeRewardEndTime);
     }
 
+    function isContract(address account) internal view returns (bool) {
+        uint256 size;
+        assembly {
+            size := extcodesize(account)
+        }
+        return size > 0;
+    }
+
     function setPrevPolsStaking(address _prevPolsStaking) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(isContract(_prevPolsStaking), "is not a contract");
         prevPolsStaking = _prevPolsStaking;
         emit PrevPolsStakingChanged(_prevPolsStaking);
     }
 
     /**
-     * ADMIN_ROLE has to set BURNER_ROLE
+     * ADMIN_ROLE has to set REWARDS_BURNER_ROLE
      * allows an external (lottery token sale) contract to substract rewards
      */
-    function burnRewards(address _staker, uint256 _amount) external onlyRole(BURNER_ROLE) {
+    function burnRewards(address _staker, uint256 _amount) external onlyRole(REWARDS_BURNER_ROLE) {
         User storage user = _updateRewards(_staker);
 
         if (_amount < user.accumulatedRewards) {
@@ -336,6 +349,15 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
             user.accumulatedRewards = 0; // burn at least all what's there
         }
         emit RewardsBurned(_staker, _amount);
+    }
+
+    /**
+     * ADMIN_ROLE has to set REWARDS_MINTER_ROLE
+     * allows an external account, contract, or program to add (new) rewards to a staker's account
+     */
+    function mintRewards(address _staker, uint256 _amount) external onlyRole(REWARDS_MINTER_ROLE) {
+        userMap[_staker].accumulatedRewards += _amount;
+        emit RewardsMinted(_staker, _amount);
     }
 
     /** msg.sender external view convenience functions *********************************/
@@ -487,7 +509,7 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
                 stakeRewardEndTime,
                 lockedRewardsEnabled,
                 lockedRewardsCurrent,
-                user.stakePeriodRewardFactor
+                user.stakePeriodRewardsDiv
             );
     }
 
@@ -560,7 +582,7 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
             uint48 newUserUnlockTime = toUint48(block.timestamp + lockTimePeriodSeconds);
             require(newUserUnlockTime >= user.unlockTime, "new unlockTime not after current");
             user.unlockTime = newUserUnlockTime;
-            user.stakePeriodRewardFactor = lockTimePeriodRewardFactor[lockTimeIndex];
+            user.stakePeriodRewardsDiv = lockTimePeriodRewardFactor[lockTimeIndex];
         } else {
             // lockTimeIndex == 0
             // check if we are in a lock period
@@ -606,27 +628,20 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * Migrate rewards from previous (v1/v2) staking contract
+     * Migrate rewards from previous staking contract to this one
      */
-    function migrateRewards(address _staker) public returns (uint256) {
-        uint256 externalStakeAmount = IPolsStakeMigrate(prevPolsStaking).balanceOf(_staker);
-        require(externalStakeAmount == 0, "still tokens staked");
+    function migrateRewards() public returns (uint256) {
+        // call burn(0) just to add claimableRewards to accumulatedRewards
+        IPolsStakeMigrate(prevPolsStaking).burnRewards(msg.sender, 0);
 
-        uint256 externalAccumulatedRewards = IPolsStakeMigrate(prevPolsStaking).userAccumulatedRewards(_staker);
-        require(externalAccumulatedRewards > 0, "no accumulated rewards");
+        uint256 rewardsPrev = IPolsStakeMigrate(prevPolsStaking).userAccumulatedRewards(msg.sender);
 
-        IPolsStakeMigrate(prevPolsStaking).burnRewards(_staker, externalAccumulatedRewards);
-
-        uint256 remainingAccumulatedRewards = IPolsStakeMigrate(prevPolsStaking).userAccumulatedRewards(_staker);
-        require(remainingAccumulatedRewards == 0, "burn rewards failed");
-        userMap[_staker].accumulatedRewards += externalAccumulatedRewards;
-
-        emit RewardsAdded(_staker, externalAccumulatedRewards);
-        return externalAccumulatedRewards;
-    }
-
-    function migrateRewards_msgSender() external returns (uint256) {
-        return migrateRewards(msg.sender);
+        if (rewardsPrev > 0) {
+            IPolsStakeMigrate(prevPolsStaking).burnRewards(msg.sender, rewardsPrev);
+            userMap[msg.sender].accumulatedRewards += rewardsPrev;
+            emit RewardsAdded(msg.sender, rewardsPrev);
+        }
+        return rewardsPrev;
     }
 
     /**
