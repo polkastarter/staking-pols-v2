@@ -16,8 +16,8 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
     // using Strings for uint256; // DEBUG ONLY
 
     // bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
-    bytes32 public constant REWARDS_BURNER_ROLE = keccak256("REWARDS_BURNER_ROLE");
-    bytes32 public constant REWARDS_MINTER_ROLE = keccak256("REWARDS_MINTER_ROLE");
+    bytes32 public constant ROLE_REWARDS_BURN = keccak256("ROLE_REWARDS_BURN");
+    bytes32 public constant ROLE_REWARDS_MINT = keccak256("ROLE_REWARDS_MINT");
 
     uint48 public constant MAX_TIME = type(uint48).max; // = 2^48 - 1
     uint32 public constant REWARDS_DIV = 1_000_000;
@@ -337,10 +337,10 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * ADMIN_ROLE has to set REWARDS_BURNER_ROLE
+     * ADMIN_ROLE has to set ROLE_REWARDS_BURN
      * allows an external (lottery token sale) contract to substract rewards
      */
-    function burnRewards(address _staker, uint256 _amount) external onlyRole(REWARDS_BURNER_ROLE) {
+    function burnRewards(address _staker, uint256 _amount) external onlyRole(ROLE_REWARDS_BURN) {
         User storage user = _updateRewards(_staker);
 
         if (_amount < user.accumulatedRewards) {
@@ -352,10 +352,10 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
     }
 
     /**
-     * ADMIN_ROLE has to set REWARDS_MINTER_ROLE
+     * ADMIN_ROLE has to set ROLE_REWARDS_MINT
      * allows an external account, contract, or program to add (new) rewards to a staker's account
      */
-    function mintRewards(address _staker, uint256 _amount) external onlyRole(REWARDS_MINTER_ROLE) {
+    function mintRewards(address _staker, uint256 _amount) external onlyRole(ROLE_REWARDS_MINT) {
         userMap[_staker].accumulatedRewards += _amount;
         emit RewardsMinted(_staker, _amount);
     }
