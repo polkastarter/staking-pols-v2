@@ -16,6 +16,7 @@ const DAYS = 24 * 60 * 60;
 const DECIMALS = 18;
 const DECMULBN = BigNumber.from(10).pow(DECIMALS);
 const STAKE_AMOUNT = DECMULBN.mul(1000); // 1000 token
+const STAKE_AMOUNT_MAX = DECMULBN.mul(50000); // 1000 token
 const TIMEOUT_BLOCKCHAIN_ms = 10 * 60 * 1000; // 10 minutes
 
 const REWARDS_DIV = 1_000_000;
@@ -242,6 +243,22 @@ export function basicTestsV2(
       // at this time the balance of the stake token in the contract should be 0
       stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
       expect(stakeBalance).to.equal(0, "user should have a stake balance of 0");
+    });
+
+    it("user can not stake if userStakeAmountMax=0", async function () {
+      await expect(this.stakeV2.connect(this.signers.user1).stakelockTimeChoice(STAKE_AMOUNT, 1)).to.be.reverted;
+    });
+
+    it("user can not execute setUserStakeAmountMax()", async function () {
+      await expect(this.stakeV2.connect(this.signers.user1).setUserStakeAmountMax(STAKE_AMOUNT_MAX)).to.be.reverted;
+    });
+
+    it("admin can execute setUserStakeAmountMax()", async function () {
+      const tx = await this.stakeV2.connect(this.signers.admin).setUserStakeAmountMax(STAKE_AMOUNT_MAX);
+      await tx.wait();
+
+      const result = await this.stakeV2.userStakeAmountMax();
+      expect(result).to.equal(STAKE_AMOUNT_MAX);
     });
 
     /**

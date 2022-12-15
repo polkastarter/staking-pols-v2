@@ -22,9 +22,6 @@ const { deployContract } = hre.waffle;
 // https://docs.ethers.io/v5/api/utils/bignumber/
 // const { BigNumber } = hre.ethers;
 
-// const DECIMALS = 18;
-// const DECMULBN = BigNumber.from(10).pow(DECIMALS);
-
 const PERIOD_HARDHAT = 24 * 60 * 60; // 1 day (simulated time periods) on hardhat
 const PERIOD_BLOCKCHAIN = 60; // 1 minute on "real" blockchains
 

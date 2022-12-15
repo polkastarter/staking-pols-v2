@@ -15,7 +15,8 @@ import { toUtf8Bytes } from "ethers/lib/utils";
 
 const DECIMALS = 18;
 const DECMULBN = BigNumber.from(10).pow(DECIMALS);
-const stakeAmount = DECMULBN.mul(1000); // 1000 token
+const STAKE_AMOUNT = DECMULBN.mul(1000); // 1000 token
+const STAKE_AMOUNT_MAX = DECMULBN.mul(50000); // 1000 token
 const TIMEOUT_BLOCKCHAIN_ms = 10 * 60 * 1000; // 10 minutes
 
 export function basicTests(_timePeriod: number): void {
@@ -258,10 +259,26 @@ export function basicTests(_timePeriod: number): void {
       expect(stakeBalance).to.equal(0, "user should have a stake balance of 0");
     });
 
-    it("user can stake token", async function () {
-      console.log("staking now ... stakeAmount =", hre.ethers.utils.formatUnits(stakeAmount, stakeTokenDecimals));
+    it("user can not stake if userStakeAmountMax=0", async function () {
+      await expect(this.stakeV2.connect(this.signers.user1).stakelockTimeChoice(STAKE_AMOUNT, 1)).to.be.reverted;
+    });
 
-      const tx = await this.stakeV2.connect(this.signers.user1).stake(stakeAmount);
+    it("user can not execute setUserStakeAmountMax()", async function () {
+      await expect(this.stakeV2.connect(this.signers.user1).setUserStakeAmountMax(STAKE_AMOUNT_MAX)).to.be.reverted;
+    });
+
+    it("admin can execute setUserStakeAmountMax()", async function () {
+      const tx = await this.stakeV2.connect(this.signers.admin).setUserStakeAmountMax(STAKE_AMOUNT_MAX);
+      await tx.wait();
+
+      const result = await this.stakeV2.userStakeAmountMax();
+      expect(result).to.equal(STAKE_AMOUNT_MAX);
+    });
+
+    it("user can stake token", async function () {
+      console.log("staking now ... STAKE_AMOUNT =", hre.ethers.utils.formatUnits(STAKE_AMOUNT, stakeTokenDecimals));
+
+      const tx = await this.stakeV2.connect(this.signers.user1).stake(STAKE_AMOUNT);
       await tx.wait();
 
       blocktime = await getTimestamp();
@@ -274,10 +291,10 @@ export function basicTests(_timePeriod: number): void {
 
       stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
       console.log("stakeBalance =", hre.ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
-      expect(stakeBalance).to.equal(stakeAmount, "stake contract does not reflect staked amount");
+      expect(stakeBalance).to.equal(STAKE_AMOUNT, "stake contract does not reflect staked amount");
 
       expect(await this.stakeToken.balanceOf(this.signers.user1.address)).to.equal(
-        user1BalanceStart.sub(stakeAmount),
+        user1BalanceStart.sub(STAKE_AMOUNT),
         "user1 balance was not reduced by staked amount",
       );
     });
@@ -325,7 +342,7 @@ export function basicTests(_timePeriod: number): void {
       const stakeRewardEndTime = await this.stakeV2.stakeRewardEndTime();
       console.log("stakeRewardEndTime =", stakeRewardEndTime.toString());
 
-      const userClaimableRewards_expected = stakeAmount.mul(blockTime - stakeTime1);
+      const userClaimableRewards_expected = STAKE_AMOUNT.mul(blockTime - stakeTime1);
       console.log("userClaimableRewards_expected =", userClaimableRewards_expected.toString());
 
       userClaimableRewards_contract = await this.stakeV2.connect(this.signers.user1).userClaimableRewards_msgSender();
@@ -338,19 +355,19 @@ export function basicTests(_timePeriod: number): void {
 
     it("user can stake same amount again, should have staked 2x then", async function () {
       // stake same amount again - lock period starts again
-      console.log("staking now ... stakeAmount =", hre.ethers.utils.formatUnits(stakeAmount, stakeTokenDecimals));
+      console.log("staking now ... STAKE_AMOUNT =", hre.ethers.utils.formatUnits(STAKE_AMOUNT, stakeTokenDecimals));
 
-      const tx = await this.stakeV2.connect(this.signers.user1).stake(stakeAmount);
+      const tx = await this.stakeV2.connect(this.signers.user1).stake(STAKE_AMOUNT);
       await tx.wait();
 
       stakeTime2 = await getTimestamp();
 
       stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
       console.log("stakeBalance =", hre.ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
-      expect(stakeBalance).to.equal(stakeAmount.mul(2), "stake contract does not reflect staked amount");
+      expect(stakeBalance).to.equal(STAKE_AMOUNT.mul(2), "stake contract does not reflect staked amount");
 
       expect(await this.stakeToken.balanceOf(this.signers.user1.address)).to.equal(
-        user1BalanceStart.sub(stakeAmount).sub(stakeAmount),
+        user1BalanceStart.sub(STAKE_AMOUNT).sub(STAKE_AMOUNT),
         "user1 balance was not reduced by staked amount",
       );
     });
@@ -363,14 +380,14 @@ export function basicTests(_timePeriod: number): void {
        */
 
       const blockTime = await blockTimestamp();
-      const userAccumulatedRewards_expected = stakeAmount.mul(blockTime - stakeTime1);
+      const userAccumulatedRewards_expected = STAKE_AMOUNT.mul(blockTime - stakeTime1);
 
       const userAccumulatedRewards_contract = await this.stakeV2
         .connect(this.signers.user1)
         .userAccumulatedRewards_msgSender();
 
       // difference = userAccumulatedRewards_contract.sub(userClaimableRewards_contract).div(stakeBalance).abs();
-      difference = userAccumulatedRewards_contract.sub(userAccumulatedRewards_expected).div(stakeAmount).abs(); // relative error to stakeBalance
+      difference = userAccumulatedRewards_contract.sub(userAccumulatedRewards_expected).div(STAKE_AMOUNT).abs(); // relative error to stakeBalance
 
       console.log(
         "(userAccumulatedRewards_contract - userClaimableRewards_contract) / stakeBalance =",
@@ -400,10 +417,10 @@ export function basicTests(_timePeriod: number): void {
       timeRelative = timeNow - startTime;
 
       /**
-       * check claimable rewards. should be ~ 2 * stakeAmount * 10 timePeriods
+       * check claimable rewards. should be ~ 2 * STAKE_AMOUNT * 10 timePeriods
        */
       const blockTime = await blockTimestamp();
-      const userClaimableRewards_expected = stakeAmount.mul(2).mul(blockTime - stakeTime2);
+      const userClaimableRewards_expected = STAKE_AMOUNT.mul(2).mul(blockTime - stakeTime2);
       console.log("userClaimableRewards_expected =", userClaimableRewards_expected.toString());
 
       userClaimableRewards_contract = await this.stakeV2.connect(this.signers.user1).userClaimableRewards_msgSender();
@@ -440,9 +457,9 @@ export function basicTests(_timePeriod: number): void {
 
       blocktime = await getTimestamp();
 
-      // 1st staking period = (stakeTime2 - stakeTime1) @ 1 * stakeAmount
-      // 2nd staking period = (blocktime  - stakeTime2) @ 2 * stakeAmount
-      expectedRewards = stakeAmount.mul(stakeTime2 - stakeTime1).add(stakeAmount.mul(2).mul(blocktime - stakeTime2));
+      // 1st staking period = (stakeTime2 - stakeTime1) @ 1 * STAKE_AMOUNT
+      // 2nd staking period = (blocktime  - stakeTime2) @ 2 * STAKE_AMOUNT
+      expectedRewards = STAKE_AMOUNT.mul(stakeTime2 - stakeTime1).add(STAKE_AMOUNT.mul(2).mul(blocktime - stakeTime2));
       console.log(">>>>>> expectedRewards =", expectedRewards.toString());
 
       // stake amount should be zero
@@ -526,11 +543,11 @@ export function basicTests(_timePeriod: number): void {
       /**
        * Check userAccumulatedRewards
        */
-      // const rewardsStake1 = stakeAmount.mul(15).mul(timePeriod); // TODO - use measured, expired time
-      // const rewardsStake2 = stakeAmount.mul(10).mul(timePeriod);
+      // const rewardsStake1 = STAKE_AMOUNT.mul(15).mul(timePeriod); // TODO - use measured, expired time
+      // const rewardsStake2 = STAKE_AMOUNT.mul(10).mul(timePeriod);
       // const userAccumulatedRewards_expected = rewardsStake1.add(rewardsStake2);
 
-      const userAccumulatedRewards_expected = expectedRewards; // stakeAmount.mul(stakeTime2 - stakeTime1).add( stakeAmount.mul(2).mul(blocktime - stakeTime2) );
+      const userAccumulatedRewards_expected = expectedRewards; // STAKE_AMOUNT.mul(stakeTime2 - stakeTime1).add( STAKE_AMOUNT.mul(2).mul(blocktime - stakeTime2) );
 
       const userAccumulatedRewards_contract = await this.stakeV2
         .connect(this.signers.user1)

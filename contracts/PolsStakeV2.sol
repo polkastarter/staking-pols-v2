@@ -50,6 +50,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
     event RewardsBurned(address indexed staker, uint256 amount);
     event RewardsMinted(address indexed staker, uint256 amount);
     event ERC20TokensRemoved(address indexed tokenAddress, address indexed receiver, uint256 amount);
+    event UserStakeAmountMaxChanged(uint128 amount);
 
     struct User {
         uint48 stakeTime;
@@ -66,6 +67,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
     address public immutable stakingToken; // address of token which can be staked into this contract
     address public rewardToken; // address of reward token
     address public prevPolsStaking; // address of previously deployed PolsStaking contract (to migrate rewards from)
+    uint128 public userStakeAmountMax; // maximum amount an account can stake (if 0 => no additional staking possible)
 
     /**
      * Using block.timestamp instead of block.number for reward calculation
@@ -267,6 +269,11 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
     function setUnlockedRewardsFactor(uint256 _unlockedRewardsFactor) external onlyRole(DEFAULT_ADMIN_ROLE) {
         unlockedRewardsFactor = _unlockedRewardsFactor;
         emit UnlockedRewardsFactorChanged(_unlockedRewardsFactor);
+    }
+
+    function setUserStakeAmountMax(uint128 _userStakeAmountMax) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        userStakeAmountMax = _userStakeAmountMax;
+        emit UserStakeAmountMaxChanged(_userStakeAmountMax);
     }
 
     /**
@@ -573,6 +580,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         // calculate reward credits using previous staking amount and previous time period
         // add new reward credits to already accumulated reward credits
         User storage user = userMap[msg.sender];
+
         // if staking with an existing lock period, then only add rewards until current time
         // ===> lockedRewardsCurrent = true
         user.accumulatedRewards += userClaimableRewardsCurrent(msg.sender, true); // do not take future, locked rewards into account !!!
@@ -595,7 +603,9 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         }
 
         if (_amount > 0) {
-            user.stakeAmount = toUint128(user.stakeAmount + _amount);
+            uint128 user_stakeAmount = toUint128(user.stakeAmount + _amount);
+            require(user_stakeAmount <= userStakeAmountMax, "max stake amount exedet");
+            user.stakeAmount = user_stakeAmount;
             tokenTotalStaked += _amount;
             // using SafeERC20 for IERC20 => will revert in case of error
             IERC20(stakingToken).safeTransferFrom(msg.sender, address(this), _amount);
