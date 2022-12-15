@@ -68,6 +68,8 @@ Due to above features the reward calculation became more complex. In addition th
 - `lockedRewardsCurrent`
   - false : returns the rewards as described above (future rewards will be given until unlockTime)
   - true : "extending lockPeriod" as well as "topUp" requires to ignore the future rewards which a user would be normally receive and instead return what he has actually accumulated until this point of time
+- `userStakeAmountMax (uint128)`
+  - The maximum amount of tokens an account can stake. When set to `0` (which is the default after deployment), no user can stake (additional) tokens. As existing staked amount and withdrawal of tokens is not effected, it is safe to increase or decrease the value while users have staked tokens. Setting the value later to `0` again can also be useful in case of phasing out this contract or protecting users from staking additional tokens in case a security issue was found.
 
 ### Testing
 
