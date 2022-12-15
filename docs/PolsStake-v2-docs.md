@@ -1,8 +1,8 @@
-# PolsStake v3
+# PolsStake v2
 
-## v2 Staking Overview (previous version / first live deployment)
+## v1 Staking Overview (previous version / first live deployment)
 
-We have a POLS token staking contract v2 (it's actually our first version, just the github release was v2.0.0 when deployed. Whenever v1 is somewhere mentioned in a comment, it's actually this v2 version.).
+We have a POLS token staking contract (v1 - first live version on mainnet, deployed in 2021).
 
 https://github.com/polkastarter/staking-pols/releases
 
@@ -12,9 +12,9 @@ The internal rewards calculation is pretty simple , its : staked time (in second
 
 When staked, the tokens are locked for 7 days, however there is no impact on the rewards if tokens are locked or if time is past the lock perios, rewards are always determined just be time\*amount.
 
-## v3 Staking Overview
+## v2 Staking Overview
 
-The main features of v3 are :
+The main features of v2 are :
 
 ### Standard Stake (first time / no existing staked balance)
 
@@ -48,18 +48,18 @@ This operation is initiated be either calling the standard stake function with a
 
 Alternatively `function topUp(uint256 _amount)` can be called .. although we might remove this function as it is covered by the standard stake function with `lockTimeIndex = 0` anyway.
 
-## v3 - Reward Calculation
+## v2 - Reward Calculation
 
 ### Parameter
 
-Due to above features the reward calculation became more complex. In addition there are parameter to tune the rewards as well as switch between v2 and v3 mode.
+Due to above features the reward calculation became more complex. In addition there are parameter to tune the rewards as well as switch between v1 and v2 mode.
 
 - `lockedRewardsEnabled`
-  - true : user gets (future) rewards for lockPeriod\*amount at time of staking (v3 mode)
-  - false: user does NOT get (future) rewards for lockPeriod\*amount at time of staking (v2 mode)
+  - true : user gets (future) rewards for lockPeriod\*amount at time of staking (v2 mode)
+  - false: user does NOT get (future) rewards for lockPeriod\*amount at time of staking (v1 mode)
 - `unlockedRewardsFactor`
-  - 0 : no rewards for staking outside the lockPeriod (v3 mode)
-  - 1 : linear rewards anytime, also outside the lockPeriod (1 is represented as 1\*REWARDS_DIV) (v2 mode)
+  - 0 : no rewards for staking outside the lockPeriod (v2 mode)
+  - 1 : linear rewards anytime, also outside the lockPeriod (1 is represented as 1\*REWARDS_DIV) (v1 mode)
 - `lockTimePeriodRewardFactor`
   - an option to give every choice from the `lockTimePeriod`-list a "boost factor"
   - not sure/decided if we use/add that actually to the rewards calculation
@@ -75,8 +75,8 @@ As there are quite some combinations of stakeTime, unlockTime, current blockTime
 
 **test scripts**
 
-- `PolsStake_v1.ts` tests v3 set to `v2 mode`
-- `PolsStake_v1-PolsRewards.ts` tests v3 set to `v2 mode` (stake token = reward token , `removeOtherERC20Tokens`)
-- `PolsStake-v3-RewardCalculation.ts` lots of (partially redundant) test cases to test function `_userClaimableRewardsCalculation`
-- `PolsStake-v3.ts` tests most of v3 features, mainly the (upfront) rewards from locking tokens into the staking contract
-- `PolsStake-v3-no-unlocked-rewards.ts` mostly the same as `PolsStake-v3.ts` but setup with `unlockedRewardsFactor = 0` so that users do not receive any rewards for tokens staked outside the lock period
+- `PolsStake_v1.ts` tests v2 set to `v1 mode`
+- `PolsStake_v1-PolsRewards.ts` tests v2 set to `v1 mode` (stake token = reward token , `removeOtherERC20Tokens`)
+- `PolsStake-v2-RewardCalculation.ts` lots of (partially redundant) test cases to test function `_userClaimableRewardsCalculation`
+- `PolsStake-v2.ts` tests most of v2 features, mainly the (upfront) rewards from locking tokens into the staking contract
+- `PolsStake-v2-no-unlocked-rewards.ts` mostly the same as `PolsStake-v2.ts` but setup with `unlockedRewardsFactor = 0` so that users do not receive any rewards for tokens staked outside the lock period

@@ -5,19 +5,23 @@ pragma solidity ^0.8.17;
 import "hardhat/console.sol"; // DEBUG ONLY
 // import "@openzeppelin/contracts/utils/Strings.sol"; // DEBUG ONLY
 
-import "@openzeppelin/contracts/access/AccessControl.sol"; // OZ contracts v4
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol"; // OZ contracts v4
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"; // OZ contracts v4
+// OZ contracts v4.8
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./IPolsStakeMigrate.sol";
 
-contract PolsStakeV2 is AccessControl, ReentrancyGuard {
+contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     // using Strings for uint256; // DEBUG ONLY
 
     // bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
     bytes32 public constant ROLE_REWARDS_BURN = keccak256("ROLE_REWARDS_BURN");
     bytes32 public constant ROLE_REWARDS_MINT = keccak256("ROLE_REWARDS_MINT");
+    bytes32 public constant ROLE_STAKING_PAUSE = keccak256("ROLE_STAKING_PAUSE");
+    bytes32 public constant ROLE_STAKING_UNPAUSE = keccak256("ROLE_STAKING_UNPAUSE");
 
     uint48 public constant MAX_TIME = type(uint48).max; // = 2^48 - 1
     uint32 public constant REWARDS_DIV = 1_000_000;
@@ -30,6 +34,7 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
         uint48 lockPeriod,
         uint48 unlockTime
     );
+
     event Withdraw(address indexed account, uint256 amount, uint48 withdrawTime);
     event Claimed(address indexed account, address indexed rewardToken, uint256 amount);
     event RewardsAdded(address indexed account, uint256 externalAccumulatedRewards);
@@ -89,9 +94,9 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
     uint48 public stakeRewardEndTime; // unix time in seconds when the reward scheme will end
     uint256 public stakeRewardFactor; // time in seconds * amount of staked token to receive 1 reward token
 
-    // new v3 features
-    bool public lockedRewardsEnabled; // upfront rewards for lock period (v2=false, v3=true)
-    uint256 public unlockedRewardsFactor; // rewards multiplier outside lock period (v2=1*REWARDS_DIV , v3=0)
+    // new v2 features
+    bool public lockedRewardsEnabled; // upfront rewards for lock period (v1:false, v2:true)
+    uint256 public unlockedRewardsFactor; // rewards multiplier outside lock period (v1:1*REWARDS_DIV , v2:0)
 
     constructor(address _stakingToken) {
         require(_stakingToken != address(0), "stakingToken.address == 0");
@@ -99,16 +104,16 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
         stakingToken = _stakingToken;
 
         // set some defaults
-        lockedRewardsEnabled = false; // (like v2)
-        unlockedRewardsFactor = 1 * REWARDS_DIV; // by default (amount * time * 1.0) rewards for staked, but unlocked tokens (like v2)
+        lockedRewardsEnabled = false; // (false => like v1, true (v2) => receive rewards upfront for lock time period)
+        unlockedRewardsFactor = 1 * REWARDS_DIV; // by default (amount * time * 1.0) rewards for staked, but unlocked tokens (like v1)
         stakeRewardFactor = 1000 * 1 days; // default : a user has to stake 1000 token for 1 day to receive 1 reward token
         stakeRewardEndTime = uint48(block.timestamp + 366 days); // default : reward scheme ends in 1 year
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /**
-     * PolsStake v2 backwards compatibility functions (to be removed later)
-     * mostly used to run v2 test (almost) unchanged on v3
+     * backwards compatibility functions (could be removed later)
+     * mostly used to run v1 test (almost) unchanged on v2
      */
     function stake(uint256 _amount) external nonReentrant returns (uint256) {
         return _stakelockTimeChoice(_amount, 1); // use default index 1 which should be 7 days
@@ -416,7 +421,7 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
      * @param user_unlockTime   time when user's staked tokens will be unlocked
      * @param t0   current block time
      * @param endTime           time when the rewards scheme will end
-     * @param lockedRewards     true => user will get full rewards for lock time upfront (v3 default mode)
+     * @param lockedRewards     true => user will get rewards upfront for lock time period (v2 default mode)
      * @param lockedRewardsCurrent true => only calculate locked rewards up to t0
      * @param user_stakePeriodRewardFactor is a reward factor for a given lock period option
      * @return claimableRewards rewards user has received / can claim at this block time
@@ -456,7 +461,7 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
         // - user_stakeTime <  endTime
 
         if (lockedRewards) {
-            // v3 mode
+            // v2 mode
             if (t0 <= user_unlockTime) {
                 // user_stakeTime <= t0 <= user_unlockTime
                 user_rewardEnd = min(user_unlockTime, endTime); // (user_stakeTime < endTime) && (user_stakeTime <= user_unlockTime) ===> user_stakeTime <= user_rewardEnd
@@ -485,7 +490,7 @@ contract PolsStakeV2 is AccessControl, ReentrancyGuard {
                 }
             }
         } else {
-            // v2 mode
+            // v1 mode
             timePeriod = min(t0, endTime) - user_stakeTime; // safe - see conditions above
             rewards = (timePeriod * user_stakeAmount * unlockedRewardsFactor) / REWARDS_DIV;
         }
