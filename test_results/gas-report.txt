@@ -1,3 +1,4 @@
+PolsStake v1
 
 ·----------------------------------------------|---------------------------|-------------|-----------------------------·
 |             Solc version: 0.5.8              ·  Optimizer enabled: true  ·  Runs: 200  ·  Block limit: 12450000 gas  │
@@ -33,7 +34,7 @@
 
 
 
-gas-optimized-struct
+PolsStake v1 - gas-optimized-struct
 
 ·----------------------------------------------|---------------------------|-------------|-----------------------------·
 |             Solc version: 0.5.8              ·  Optimizer enabled: true  ·  Runs: 200  ·  Block limit: 12450000 gas  │
@@ -67,7 +68,7 @@ gas-optimized-struct
 |  RewardToken                                 ·          -  ·          -  ·    1917313  ·       15.4 %  ·          -  │
 ·----------------------------------------------|-------------|-------------|-------------|---------------|-------------·
 
-v2.0.0-RC7
+PolsStake v1 - v2.0.0-RC7
 
 ·----------------------------------------------|---------------------------|-------------|-----------------------------·
 |             Solc version: 0.5.8              ·  Optimizer enabled: true  ·  Runs: 200  ·  Block limit: 30000000 gas  │
@@ -107,7 +108,7 @@ v2.0.0-RC7
 
   52 passing (4s)
 
-address public immutable stakingToken;
+PolsStake v1 : address public immutable stakingToken;
 
 ·----------------------------------------------|---------------------------|-------------|-----------------------------·
 |             Solc version: 0.5.8              ·  Optimizer enabled: true  ·  Runs: 200  ·  Block limit: 30000000 gas  │
@@ -147,7 +148,7 @@ address public immutable stakingToken;
 
   52 passing (4s)
 
-v.2.0.0 RELEASE solc 0.8.7 / 0.8.8
+PolsStake v1 RELEASE v.2.0.0 solc 0.8.7 / 0.8.8
 
 ·------------------------------------------------|---------------------------|-------------|-----------------------------·
 |              Solc version: 0.5.8               ·  Optimizer enabled: true  ·  Runs: 200  ·  Block limit: 30000000 gas  │
@@ -190,7 +191,7 @@ v.2.0.0 RELEASE solc 0.8.7 / 0.8.8
   53 passing (4s)
 
 
-v.2.0.0 RELEASE - solc 0.8.9
+PolsStake v1 RELEASE v.2.0.0 - solc 0.8.9
 
 ·------------------------------------------------|---------------------------|-------------|-----------------------------·
 |              Solc version: 0.5.8               ·  Optimizer enabled: true  ·  Runs: 200  ·  Block limit: 30000000 gas  │
