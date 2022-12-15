@@ -55,7 +55,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
     struct User {
         uint48 stakeTime;
         uint48 unlockTime;
-        uint32 stakePeriodRewardsDiv; // 1.0 = 1 * REWARDS_DIV
+        uint32 stakePeriodRewardsFactor; // 1.0 = 1 * REWARDS_DIV
         uint128 stakeAmount;
         uint256 accumulatedRewards;
     }
@@ -448,11 +448,13 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         // case 1) 2) 3)
         // stake time in the future - should never happen - actually an (internal ?) error
         require(user_stakeTime <= t0, "INTERNAL ERROR : current blocktime before staketime");
+        // if (user_stakeTime >= t0) return 0;
 
         // unlockTime before staketime - should never happen - actually an (internal ?) error
         // console_log_time("user_stakeTime  (dd hh mm ss) =", user_stakeTime);
         // console_log_time("user_unlockTime (dd hh mm ss) =", user_unlockTime);
         require(user_stakeTime <= user_unlockTime, "INTERNAL ERROR : unlockTime before staketime");
+        // if (user_stakeTime > user_unlockTime) return 0;
 
         // case 4)
         // staked after reward period is over => no rewards
@@ -521,7 +523,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
                 stakeRewardEndTime,
                 lockedRewardsEnabled,
                 lockedRewardsCurrent,
-                user.stakePeriodRewardsDiv
+                user.stakePeriodRewardsFactor
             );
     }
 
@@ -595,16 +597,16 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
             uint48 newUserUnlockTime = toUint48(block.timestamp + lockTimePeriodSeconds);
             require(newUserUnlockTime >= user.unlockTime, "new unlockTime not after current");
             user.unlockTime = newUserUnlockTime;
-            user.stakePeriodRewardsDiv = lockTimePeriodRewardFactor[lockTimeIndex];
+            user.stakePeriodRewardsFactor = lockTimePeriodRewardFactor[lockTimeIndex]; // TODO ???
         } else {
-            // lockTimeIndex == 0
+            // lockTimeIndex == 0 ("topUp case")
             // check if we are in a lock period
             require(block.timestamp < user.unlockTime, "not in a lock period");
         }
 
         if (_amount > 0) {
             uint128 user_stakeAmount = toUint128(user.stakeAmount + _amount);
-            require(user_stakeAmount <= userStakeAmountMax, "max stake amount exedet");
+            require(user_stakeAmount <= userStakeAmountMax, "max stake amount exceeded");
             user.stakeAmount = user_stakeAmount;
             tokenTotalStaked += _amount;
             // using SafeERC20 for IERC20 => will revert in case of error
