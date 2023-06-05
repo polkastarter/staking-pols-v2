@@ -1,4 +1,4 @@
-import hre from "hardhat";
+import { ethers, network } from "hardhat";
 
 // https://www.chaijs.com/guide/styles/#expect
 // https://www.chaijs.com/api/bdd/
@@ -9,9 +9,6 @@ import * as path from "path";
 import { BigNumber, BigNumberish } from "ethers";
 import { Logger } from "@ethersproject/logger";
 import { toUtf8Bytes } from "ethers/lib/utils";
-
-// https://docs.ethers.io/v5/api/utils/bignumber/
-// const { BigNumber } = hre.ethers;
 
 const DECIMALS = 18;
 const DECMULBN = BigNumber.from(10).pow(DECIMALS);
@@ -37,7 +34,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
   const filenameHeader = path.basename(__filename).concat(" ").padEnd(80, "=").concat("\n");
 
   describe("PolsStake : " + filenameHeader, function () {
-    if (hre.network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms); // setup timeout to 5 min
+    if (network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms); // setup timeout to 5 min
 
     it("stake token should have 18 decimals", async function () {
       stakeTokenDecimals = await this.stakeToken.decimals();
@@ -61,7 +58,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
       await tx.wait();
 
       const balance = await this.stakeToken.balanceOf(this.signers.user1.address);
-      console.log("user1 : stakeToken balance = ", hre.ethers.utils.formatUnits(balance, stakeTokenDecimals));
+      console.log("user1 : stakeToken balance = ", ethers.utils.formatUnits(balance, stakeTokenDecimals));
       expect(balance).to.equal(amount);
     });
 
@@ -69,14 +66,14 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
       const amount = "10000" + "0".repeat(18);
       // no transfer of stake token to user1 here
       const balance = await this.stakeToken.balanceOf(this.signers.user1.address);
-      console.log("user1 : stakeToken balance = ", hre.ethers.utils.formatUnits(balance, stakeTokenDecimals));
+      console.log("user1 : stakeToken balance = ", ethers.utils.formatUnits(balance, stakeTokenDecimals));
       expect(balance).to.equal(amount);
     });
 
     it("deploy a reward token and mint some token to admin account", async function () {
       const balance = await this.rewardToken.balanceOf(this.signers.admin.address);
-      console.log("reward token balance of admin =", hre.ethers.utils.formatUnits(balance, rewardTokenDecimals));
-      expect(balance).to.gte(hre.ethers.utils.parseUnits("1000.0", rewardTokenDecimals));
+      console.log("reward token balance of admin =", ethers.utils.formatUnits(balance, rewardTokenDecimals));
+      expect(balance).to.gte(ethers.utils.parseUnits("1000.0", rewardTokenDecimals));
     });
 
     it("user1 should have no rewards token", async function () {
@@ -88,7 +85,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
     });
 
     it("send 1000 reward tokens from admin account to staking contract", async function () {
-      const amount = hre.ethers.utils.parseUnits("1000.0", rewardTokenDecimals);
+      const amount = ethers.utils.parseUnits("1000.0", rewardTokenDecimals);
 
       const tx = await this.rewardToken.connect(this.signers.admin).transfer(this.stake.address, amount);
       await tx.wait();
@@ -96,7 +93,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
       const balance = await this.rewardToken.balanceOf(this.stake.address);
       console.log(
         "staking contract reward token balance = ",
-        hre.ethers.utils.formatUnits(balance, rewardTokenDecimals),
+        ethers.utils.formatUnits(balance, rewardTokenDecimals),
       );
       expect(balance).to.equal(amount);
     });
@@ -134,8 +131,8 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
         // console.log("error.reason =", error.reason);
         // console.log("error =", error);
 
-        if (hre.network.name == "hardhat") {
-          // hre.network.chainId == 31337
+        if (network.name == "hardhat") {
+          // network.chainId == 31337
           revert = error.toString().startsWith("Error: VM Exception while processing transaction: reverted");
         } else {
           revert = error.code == Logger.errors.CALL_EXCEPTION; // && error.reason == "transaction failed";
@@ -170,7 +167,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
    */
 
   describe("test stake & unstake, time lock and rewards", function () {
-    if (hre.network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms); // setup timeout to 5 min
+    if (network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms); // setup timeout to 5 min
 
     let timeNow: number; // number type makes time calculations easier
     let startTime: number; // time when the test starts
@@ -185,8 +182,8 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
      * @returns block.timestamp in unix epoch time (seconds)
      */
     const blockTimestamp = async (): Promise<number> => {
-      const blockNumber = await hre.ethers.provider.getBlockNumber();
-      return (await hre.ethers.provider._getBlock(blockNumber)).timestamp;
+      const blockNumber = await ethers.provider.getBlockNumber();
+      return (await ethers.provider._getBlock(blockNumber)).timestamp;
     };
 
     /**
@@ -195,10 +192,10 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
      */
     const moveTime = async (timeAmount: number): Promise<number> => {
       console.log("Jumping ", timeAmount, "seconds into the future ...");
-      await hre.ethers.provider.send("evm_increaseTime", [timeAmount]);
-      await hre.ethers.provider.send("evm_mine", []);
-      const blockNumber = await hre.ethers.provider.getBlockNumber();
-      const timeNow = (await hre.ethers.provider._getBlock(blockNumber)).timestamp;
+      await ethers.provider.send("evm_increaseTime", [timeAmount]);
+      await ethers.provider.send("evm_mine", []);
+      const blockNumber = await ethers.provider.getBlockNumber();
+      const timeNow = (await ethers.provider._getBlock(blockNumber)).timestamp;
       console.log("moveTime : timeNow =", timeNow);
       console.log("----------------------------------------------------------------------------");
       return timeNow;
@@ -206,7 +203,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
 
     const getTimestamp = async (): Promise<number> => {
       let currentTime: number;
-      if (hre.network.name == "hardhat") {
+      if (network.name == "hardhat") {
         currentTime = await blockTimestamp();
       } else {
         currentTime = Math.floor(Date.now() / 1000);
@@ -221,7 +218,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
      */
     const waitTime = async (timeAmount: number): Promise<number> => {
       let newTime: number;
-      if (hre.network.name == "hardhat") {
+      if (network.name == "hardhat") {
         newTime = await moveTime(timeAmount);
       } else {
         await new Promise(f => setTimeout(f, timeAmount * 1000));
@@ -239,13 +236,13 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
       console.log("startTime =", startTime);
 
       user1BalanceStart = await this.stakeToken.balanceOf(this.signers.user1.address);
-      console.log("user1Balance =", hre.ethers.utils.formatUnits(user1BalanceStart, stakeTokenDecimals));
+      console.log("user1Balance =", ethers.utils.formatUnits(user1BalanceStart, stakeTokenDecimals));
 
       const tx = await this.stakeToken.connect(this.signers.user1).approve(this.stake.address, user1BalanceStart);
       await tx.wait();
 
       const allowance = await this.stakeToken.allowance(this.signers.user1.address, this.stake.address);
-      console.log("user1 approved allowance   =", hre.ethers.utils.formatUnits(allowance, stakeTokenDecimals));
+      console.log("user1 approved allowance   =", ethers.utils.formatUnits(allowance, stakeTokenDecimals));
 
       // at this time the balance of the stake token in the contract should be 0
       stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
@@ -259,7 +256,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
     });
 
     it("user can stake token", async function () {
-      console.log("staking now ... stakeAmount =", hre.ethers.utils.formatUnits(stakeAmount, stakeTokenDecimals));
+      console.log("staking now ... stakeAmount =", ethers.utils.formatUnits(stakeAmount, stakeTokenDecimals));
 
       const tx = await this.stake.connect(this.signers.user1).stake(stakeAmount);
       await tx.wait();
@@ -273,7 +270,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
       stakeTime1 = blocktime;
 
       stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
-      console.log("stakeBalance =", hre.ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
+      console.log("stakeBalance =", ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
       expect(stakeBalance).to.equal(stakeAmount, "stake contract does not reflect staked amount");
 
       expect(await this.stakeToken.balanceOf(this.signers.user1.address)).to.equal(
@@ -296,7 +293,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
 
     it("user can not unstake during the lockTimePeriod", async function () {
       // wait 5 timePeriods
-      if (hre.network.name != "hardhat") this.timeout(5 * timePeriod * 1000 + TIMEOUT_BLOCKCHAIN_ms); // wait time + 15 min timeout for RPC call
+      if (network.name != "hardhat") this.timeout(5 * timePeriod * 1000 + TIMEOUT_BLOCKCHAIN_ms); // wait time + 15 min timeout for RPC call
       timeNow = await waitTime(5 * timePeriod);
       timeRelative = timeNow - startTime;
 
@@ -338,7 +335,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
 
     it("user can stake same amount again, should have staked 2x then", async function () {
       // stake same amount again - lock period starts again
-      console.log("staking now ... stakeAmount =", hre.ethers.utils.formatUnits(stakeAmount, stakeTokenDecimals));
+      console.log("staking now ... stakeAmount =", ethers.utils.formatUnits(stakeAmount, stakeTokenDecimals));
 
       const tx = await this.stake.connect(this.signers.user1).stake(stakeAmount);
       await tx.wait();
@@ -346,7 +343,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
       stakeTime2 = await getTimestamp();
 
       stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
-      console.log("stakeBalance =", hre.ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
+      console.log("stakeBalance =", ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
       expect(stakeBalance).to.equal(stakeAmount.mul(2), "stake contract does not reflect staked amount");
 
       expect(await this.stakeToken.balanceOf(this.signers.user1.address)).to.equal(
@@ -395,7 +392,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
 
     it("check userClaimableRewards", async function () {
       // wait 10 time periods
-      if (hre.network.name != "hardhat") this.timeout(10 * timePeriod * 1000 + TIMEOUT_BLOCKCHAIN_ms);
+      if (network.name != "hardhat") this.timeout(10 * timePeriod * 1000 + TIMEOUT_BLOCKCHAIN_ms);
       timeNow = await waitTime(10 * timePeriod);
       timeRelative = timeNow - startTime;
 
@@ -477,7 +474,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
 
       // >>>>>>>>>>>>>>>>  WAIT 5 time periods - user should not receive any additional rewards <<<<<<<<<<<<<<<<<<<<<<
       const waitingTime = 5 * timePeriod;
-      if (hre.network.name != "hardhat") this.timeout(waitingTime * 1000 + TIMEOUT_BLOCKCHAIN_ms); // wait time + 5 min timeout for RPC call
+      if (network.name != "hardhat") this.timeout(waitingTime * 1000 + TIMEOUT_BLOCKCHAIN_ms); // wait time + 5 min timeout for RPC call
       console.log("waiting (seconds) ...", waitingTime);
       timeNow = await waitTime(waitingTime);
 
@@ -558,13 +555,13 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
      */
     it("after withdrawAll, user should not be able to increase rewards by calling withdraw(0)", async function () {
       const totalRewards_before = await this.stake.connect(this.signers.user1).userTotalRewards_msgSender();
-      console.log("totalRewards_before =", hre.ethers.utils.formatUnits(totalRewards_before, rewardTokenDecimals));
+      console.log("totalRewards_before =", ethers.utils.formatUnits(totalRewards_before, rewardTokenDecimals));
 
       await expect(this.stake.connect(this.signers.user1).withdraw(0)).to.be.reverted;
       // await tx2.wait();
 
       const totalRewards_after = await this.stake.connect(this.signers.user1).userTotalRewards_msgSender();
-      console.log("totalRewards_after  =", hre.ethers.utils.formatUnits(totalRewards_after, rewardTokenDecimals));
+      console.log("totalRewards_after  =", ethers.utils.formatUnits(totalRewards_after, rewardTokenDecimals));
 
       expect(totalRewards_after).to.equal(totalRewards_before);
     });
@@ -581,7 +578,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
       const userRewardTokenBalance_before = await this.rewardToken.balanceOf(this.signers.user1.address);
       console.log(
         "user reward token balance  - before  = ",
-        hre.ethers.utils.formatUnits(userRewardTokenBalance_before, rewardTokenDecimals),
+        ethers.utils.formatUnits(userRewardTokenBalance_before, rewardTokenDecimals),
       );
 
       const tx = await this.stake.connect(this.signers.user1).claim();
@@ -590,27 +587,27 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
       const userRewardTokenBalance_after = await this.rewardToken.balanceOf(this.signers.user1.address);
       console.log(
         "user reward token balance  - after    =",
-        hre.ethers.utils.formatUnits(userRewardTokenBalance_after, rewardTokenDecimals),
+        ethers.utils.formatUnits(userRewardTokenBalance_after, rewardTokenDecimals),
       );
 
       console.log(
         "user reward token received - expected =",
-        hre.ethers.utils.formatUnits(userRewardTokenReceived_expected, rewardTokenDecimals),
+        ethers.utils.formatUnits(userRewardTokenReceived_expected, rewardTokenDecimals),
       );
 
       const userRewardTokenBalance_received = userRewardTokenBalance_after.sub(userRewardTokenBalance_before);
       console.log(
         "user reward token received - actual   =",
-        hre.ethers.utils.formatUnits(userRewardTokenBalance_received, rewardTokenDecimals),
+        ethers.utils.formatUnits(userRewardTokenBalance_received, rewardTokenDecimals),
       );
 
       const difference = userRewardTokenBalance_received.sub(userRewardTokenReceived_expected).abs();
       console.log(
         "user reward token received - diff     = ",
-        hre.ethers.utils.formatUnits(difference, rewardTokenDecimals),
+        ethers.utils.formatUnits(difference, rewardTokenDecimals),
       );
 
-      expect(difference).lte(hre.ethers.utils.parseUnits("0.1", rewardTokenDecimals));
+      expect(difference).lte(ethers.utils.parseUnits("0.1", rewardTokenDecimals));
     });
 
     /**
@@ -621,7 +618,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
       const stakeRewardTokenBalance_before = await this.stake.getRewardTokenBalance();
       const adminRewardTokenBalance_before = await this.rewardToken.balanceOf(this.signers.admin.address);
 
-      const tx = await this.stake.connect(this.signers.admin).setRewardToken(hre.ethers.constants.AddressZero);
+      const tx = await this.stake.connect(this.signers.admin).setRewardToken(ethers.constants.AddressZero);
       await tx.wait();
 
       const stakeRewardTokenBalance_after = await this.stake.getRewardTokenBalance();
