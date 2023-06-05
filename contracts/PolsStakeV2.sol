@@ -3,7 +3,7 @@
 pragma solidity ^0.8.17;
 
 import "hardhat/console.sol"; // DEBUG ONLY
-// import "@openzeppelin/contracts/utils/Strings.sol"; // DEBUG ONLY
+import "@openzeppelin/contracts/utils/Strings.sol"; // DEBUG ONLY
 
 // OZ contracts v4.8
 import "@openzeppelin/contracts/access/AccessControl.sol";
@@ -15,7 +15,7 @@ import "./IPolsStakeMigrate.sol";
 
 contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
-    // using Strings for uint256; // DEBUG ONLY
+    using Strings for uint256; // DEBUG ONLY
 
     // bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
     bytes32 public constant ROLE_REWARDS_BURN = keccak256("ROLE_REWARDS_BURN");
@@ -205,7 +205,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
      * requires solc >=0.8.12
      * https://docs.soliditylang.org/en/v0.8.12/types.html#the-functions-bytes-concat-and-string-concat
      */
-    /*
+    
     function console_log_time(string memory message, uint256 t) internal view {
         uint256 t_seconds = t % 60;
         t = t / 60;
@@ -231,7 +231,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         timeString = string.concat(timeString, t_seconds.toString());
         console.log(message, timeString);
     }
-    */
+    
 
     /**
      * External API functions - contract specific
@@ -447,14 +447,14 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
 
         // case 1) 2) 3)
         // stake time in the future - should never happen - actually an (internal ?) error
-        require(user_stakeTime <= t0, "INTERNAL ERROR : current blocktime before staketime");
-        // if (user_stakeTime >= t0) return 0;
+        // require(user_stakeTime <= t0, "INTERNAL ERROR : current blocktime before staketime");
+        if (user_stakeTime >= t0) return 0;
 
         // unlockTime before staketime - should never happen - actually an (internal ?) error
-        // console_log_time("user_stakeTime  (dd hh mm ss) =", user_stakeTime);
-        // console_log_time("user_unlockTime (dd hh mm ss) =", user_unlockTime);
-        require(user_stakeTime <= user_unlockTime, "INTERNAL ERROR : unlockTime before staketime");
-        // if (user_stakeTime > user_unlockTime) return 0;
+        console_log_time("user_stakeTime  (dd hh mm ss) =", user_stakeTime);
+        console_log_time("user_unlockTime (dd hh mm ss) =", user_unlockTime);
+        // require(user_stakeTime <= user_unlockTime, "INTERNAL ERROR : unlockTime before staketime");
+        if (user_stakeTime > user_unlockTime) return 0;
 
         // case 4)
         // staked after reward period is over => no rewards
@@ -583,8 +583,8 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         // add new reward credits to already accumulated reward credits
         User storage user = userMap[msg.sender];
 
-        // if staking with an existing lock period, then only add rewards until current time
-        // ===> lockedRewardsCurrent = true
+        // if staking within an existing lock period, then only add rewards until current time
+        // => lockedRewardsCurrent = true
         user.accumulatedRewards += userClaimableRewardsCurrent(msg.sender, true); // do not take future, locked rewards into account !!!
 
         // update stake Time to current time (start new reward period)
@@ -594,10 +594,11 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         uint48 lockTimePeriodSeconds = lockTimePeriod[lockTimeIndex];
 
         if (lockTimeIndex > 0) {
+            console.log("lockTimePeriodSeconds =", lockTimePeriodSeconds);
             uint48 newUserUnlockTime = toUint48(block.timestamp + lockTimePeriodSeconds);
             require(newUserUnlockTime >= user.unlockTime, "new unlockTime not after current");
             user.unlockTime = newUserUnlockTime;
-            user.stakePeriodRewardsFactor = lockTimePeriodRewardFactor[lockTimeIndex]; // TODO ???
+            user.stakePeriodRewardsFactor = lockTimePeriodRewardFactor[lockTimeIndex];
         } else {
             // lockTimeIndex == 0 ("topUp case")
             // check if we are in a lock period
@@ -627,7 +628,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
 
     /**
      * Extend lock period to get more upfront rewards
-     * Actually just a special case of _stakelockTimeChoice(0, lockTimeIndex)
+     * Actually just the special case of _stakelockTimeChoice(0, lockTimeIndex)
      * @param lockTimeIndex index to the lockTimePeriod array , if 0 then do not change current unlockTime
      */
     function extendLockTime(uint8 lockTimeIndex) external returns (uint48) {

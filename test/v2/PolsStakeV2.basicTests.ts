@@ -10,7 +10,7 @@ import { BigNumber, BigNumberish } from "ethers";
 import { Logger } from "@ethersproject/logger";
 import { toUtf8Bytes } from "ethers/lib/utils";
 
-import { timePeriod, getTimestamp, moveTime, waitTime, setTime, consoleLog_timestamp } from "../libs/BlockTimeHelper";
+import { timePeriod, getTimestamp, moveTime, waitTime, setTime, logStringTime, logCurrentTimeRelative } from "../libs/BlockTimeHelper";
 
 const DAYS = 24 * 60 * 60;
 const DECIMALS = 18;
@@ -38,13 +38,16 @@ export function basicTestsV2(
   let stakeTokenDecimals: number;
   let rewardTokenDecimals: number;
 
-  let stakeTime1: number;
-  let stakeTime2: number;
   let expectedRewards = BigNumber.from(0);
   let lastRewardsContract: BigNumber;
   let unlockedRewardsFactor: number;
 
   const filenameHeader = path.basename(__filename).concat(" ").padEnd(80, "=").concat("\n");
+
+  // staking 1000 POLS for 1 DAY = 1.0 reward ("PolsPower")
+  function formatRewards(reward: BigNumber): number {
+    return reward.div(DECMULBN).toNumber() / 1000 / DAYS
+  }
 
   describe("PolsStakeV2 : " + filenameHeader, function () {
     if (hre.network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms); // setup timeout to 5 min
@@ -162,7 +165,7 @@ export function basicTestsV2(
 
     it("user1 should have no rewards token", async function () {
       userRewardTokenBalance_start = await this.rewardToken.balanceOf(this.signers.user1.address);
-      console.log("reward token balance of user1 = ", userRewardTokenBalance_start.toString());
+      console.log("reward token balance of user1 = ", userRewardTokenBalance_start);
       if (this.stakeToken.address != this.rewardToken.address) {
         expect(userRewardTokenBalance_start).to.equal(0);
       }
@@ -197,7 +200,7 @@ export function basicTestsV2(
       await tx.wait();
 
       const result = await this.stakeV2.stakeRewardFactor();
-      console.log("stakeRewardFactor = ", result.toString());
+      console.log("stakeRewardFactor = ", result);
       expect(result).to.equal(stakeRewardFactor);
     });
   });
@@ -209,22 +212,27 @@ export function basicTestsV2(
   describe("test stake & unstake, time lock and rewards", function () {
     if (hre.network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms); // setup timeout to 5 min
 
-    let timeNow: number; // number type makes time calculations easier
-    let startTime: number; // time when the test starts
+    let timeNow: number;      // number type makes time calculations easier
+    let timeStart: number;    // time when the test starts
     let timeRelative: number; // will store time relative to start time
-    let blocktime: number;
+    let timeBlockchain: number;
+    let timeStake1: number;
+    let timeStake2: number;
+    let timeStake3: number;
+    let lockTimePeriodRewardFactor: number;
+
     let stakeBalance = BigNumber.from(0);
     let difference = BigNumber.from(0);
     let user1BalanceStart = BigNumber.from(0);
+    let userTotalRewards_expected = BigNumber.from(0);
+    let stakeAmount_expected = BigNumber.from(0);
+    
 
     /**
      * @notice testing full staking & reward round-trip
      */
 
     it("user approves stake token", async function () {
-      startTime = await getTimestamp();
-      console.log("startTime =", startTime);
-
       user1BalanceStart = await this.stakeToken.balanceOf(this.signers.user1.address);
       console.log("user1Balance =", hre.ethers.utils.formatUnits(user1BalanceStart, stakeTokenDecimals));
 
@@ -262,28 +270,35 @@ export function basicTestsV2(
     });
 
     /**
-     * Time Period : 0
+     * DAY 0
      * user1 : stake with lockTimePeriodOption = 1 (7 days)
      */
 
-    it("user can stake token (option 1 = 7 days)", async function () {
+    it("*** PERIOD  0 : user can stake token (option 1 = 7 days)", async function () {
+
+      const lockTimeOption = 1;
+      
       console.log("staking now ... STAKE_AMOUNT =", hre.ethers.utils.formatUnits(STAKE_AMOUNT, stakeTokenDecimals));
 
       let tx;
-      expect((tx = await this.stakeV2.connect(this.signers.user1).stakelockTimeChoice(STAKE_AMOUNT, 1))).to.emit(
+      expect((tx = await this.stakeV2.connect(this.signers.user1).stakelockTimeChoice(STAKE_AMOUNT, lockTimeOption))).to.emit(
         this.stakeV2,
         "Stake",
       );
       // .withArgs(this.signers.user1, amount, stakeTime_???, unlockTime_???);
       await tx.wait();
 
-      blocktime = await getTimestamp();
-      console.log("blocktime =", blocktime.toString());
-      const stakeTime = await this.stakeV2.connect(this.signers.user1).stakeTime_msgSender();
-      console.log("stakeTime =", stakeTime.toString());
-      expect(Math.abs(blocktime - stakeTime)).lte(60, "stakeTime not within 60 seconds of current blocktime");
+      lockTimePeriodRewardFactor = await this.stakeV2.lockTimePeriodRewardFactor(lockTimeOption);
+      console.log("lockTimePeriodRewardFactor =", lockTimePeriodRewardFactor);
 
-      stakeTime1 = blocktime;
+      timeBlockchain = await getTimestamp();
+      logStringTime("timeBlockchain =", timeBlockchain);
+      timeStart = timeBlockchain;
+      // logStringTime("gTestStartTime =", gTestStartTime);
+      
+      timeStake1 = await this.stakeV2.connect(this.signers.user1).stakeTime_msgSender();
+      logStringTime("timeStake1 =", timeStake1);
+      expect(Math.abs(timeBlockchain - timeStake1)).lte(60, "timeStake not within 60 seconds of current timeBlockchain");
 
       stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
       console.log("stakeBalance =", hre.ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
@@ -295,62 +310,64 @@ export function basicTestsV2(
       );
     });
 
+    // unlock time should be (stakeTime + lockTimePeriod)
     it("verify getUnlockTime_msgSender()", async function () {
       const unlockTime = await this.stakeV2.connect(this.signers.user1).getUnlockTime_msgSender();
-      const stakeTime = await this.stakeV2.connect(this.signers.user1).stakeTime_msgSender();
-      console.log("unlockTime =", unlockTime);
-      console.log("stakeTime  =", stakeTime);
-      console.log("LOCK_TIME_PERIOD =", lockTimePeriodOptions[1]);
-      expect(Math.abs(unlockTime - stakeTime - lockTimePeriodOptions[1])).lte(
+      const timeStake = await this.stakeV2.connect(this.signers.user1).stakeTime_msgSender();
+
+      logStringTime("LOCK_TIME_PERIOD =", lockTimePeriodOptions[1]);
+      logStringTime("timeStake  =", timeStake);
+      logStringTime("unlockTime =", unlockTime);
+
+      expect(Math.abs(unlockTime - timeStake - lockTimePeriodOptions[1])).lte(
         60,
-        "stakeTime not within 60 seconds of current blocktime",
+        "timeStake not within 60 seconds of current timeBlockchain",
       );
     });
 
-    it("user can not unstake during the lockTimePeriod", async function () {
-      // wait 5 timePeriods
-      if (hre.network.name != "hardhat") this.timeout(5 * timePeriod * 1000 + TIMEOUT_BLOCKCHAIN_ms); // wait time + 15 min timeout for RPC call
-      timeNow = await waitTime(5 * timePeriod);
-      timeRelative = timeNow - startTime;
+
+    /**
+     * DAY 1
+     */
+    it("*** PERIOD  1 : user can not unstake during the lockTimePeriod", async function () {
+      timeNow = await setTime(timeStake1 + 1 * timePeriod);
       await expect(this.stakeV2.connect(this.signers.user1).withdrawAll()).to.be.reverted;
     });
 
-    it("no accumulated rewards while staking for the first time", async function () {
+    it("no accumulated rewards after first stake", async function () {
       expect(await this.stakeV2.connect(this.signers.user1).userAccumulatedRewards_msgSender()).to.equal(
         0,
         "user should not have any accumulated rewards",
       );
     });
 
-    it("user should have claimable rewards after staking for some time", async function () {
-      const stakeTime = await this.stakeV2.connect(this.signers.user1).stakeTime_msgSender();
-      console.log("stakeTime =", stakeTime.toString());
+    it("user should have claimable rewards after staking for 1 time period", async function () {
 
-      const blockTime = await getTimestamp();
-      console.log("blockTime =", blockTime);
+      const timeBlockchain = await getTimestamp();
+      logStringTime("timeBlockchain =", timeBlockchain);
 
-      const stakeRewardEndTime = await this.stakeV2.stakeRewardEndTime();
-      console.log("stakeRewardEndTime =", stakeRewardEndTime.toString());
+      const stakeRewardEndTime = await this.stakeV2.stakeRewardEndTime(); // general end of staking rewards
+      logStringTime("stakeRewardEndTime =", stakeRewardEndTime);
 
       const unlockTime = await this.stakeV2.connect(this.signers.user1).getUnlockTime_msgSender();
-      console.log("unlockTime         =", unlockTime.toString());
+      logStringTime("unlockTime         =", unlockTime);
 
       console.log(">>>> _lockedRewardsEnabled =", _lockedRewardsEnabled);
 
       let userClaimableRewards_expected: BigNumber;
       if (_lockedRewardsEnabled) {
-        userClaimableRewards_expected = STAKE_AMOUNT.mul(unlockTime - stakeTime1);
+        userClaimableRewards_expected = STAKE_AMOUNT.mul(unlockTime - timeStake1).mul(lockTimePeriodRewardFactor).div(REWARDS_DIV);
       } else {
-        userClaimableRewards_expected = STAKE_AMOUNT.mul(blockTime - stakeTime1);
+        userClaimableRewards_expected = STAKE_AMOUNT.mul(timeBlockchain - timeStake1).mul(lockTimePeriodRewardFactor).div(REWARDS_DIV);
       }
 
-      console.log("userClaimableRewards_expected =", userClaimableRewards_expected.toString());
+      console.log("userClaimableRewards_expected =", formatRewards(userClaimableRewards_expected));
 
       userClaimableRewards_contract = await this.stakeV2.connect(this.signers.user1).userClaimableRewards_msgSender();
-      console.log("userClaimableRewards_contract =", userClaimableRewards_contract.toString());
+      console.log("userClaimableRewards_contract =", formatRewards(userClaimableRewards_contract));
 
       difference = userClaimableRewards_contract.sub(userClaimableRewards_expected).div(stakeBalance).abs();
-      console.log("difference =", difference.toString());
+      console.log("difference =", difference);
       expect(difference).to.lte(5, "userClaimableRewards calculation is too far off");
     });
 
@@ -358,47 +375,56 @@ export function basicTestsV2(
      * Time Period : 7
      */
 
-    it("check rewards after first lock time period", async function () {
-      const stakedTime = 7 * timePeriod;
+    it("*** PERIOD  7 : check rewards after first lock time period", async function () {
+      timeNow = await setTime(timeStake1 + 7 * timePeriod);
+      logCurrentTimeRelative();
 
-      timeNow = await setTime(stakeTime1 + stakedTime);
       const userTotalRewards_contract = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       console.log("userTotalRewards_contract =", userTotalRewards_contract);
-      const userTotalRewards_expected = STAKE_AMOUNT.mul(stakedTime);
+      userTotalRewards_expected = STAKE_AMOUNT.mul(timeNow - timeStake1);
       console.log("userTotalRewards_expected =", userTotalRewards_expected);
       expect(userTotalRewards_contract).to.be.closeTo(userTotalRewards_expected, userTotalRewards_expected.div(100)); // allow 1% error
     });
 
     /**
-     * Time Period : 8
+     * Time Period : 8 (1 period after lock period end)
      */
-    it("check rewards after 1 period after end of lock time option 1 (7 days)", async function () {
-      await setTime(stakeTime1 + 8 * timePeriod);
+    it("*** PERIOD  8 : check rewards after 1 period after end of lock time option 1 (7 days)", async function () {
+      timeNow = await setTime(timeStake1 + 8 * timePeriod);
+      logCurrentTimeRelative();
+
       const userTotalRewards_contract = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       console.log("userTotalRewards_contract =", userTotalRewards_contract);
-      const userTotalRewards_expected = STAKE_AMOUNT.mul((7 + 1 * unlockedRewardsFactor) * timePeriod);
+      userTotalRewards_expected = STAKE_AMOUNT.mul((7 + 1 * unlockedRewardsFactor) * timePeriod);
       console.log("userTotalRewards_expected =", userTotalRewards_expected);
       expect(userTotalRewards_contract).to.be.closeTo(userTotalRewards_expected, userTotalRewards_expected.div(100)); // allow 1% error
     });
 
+
     it("withdraw half of staked tokens", async function () {
       const tx = await this.stakeV2.connect(this.signers.user1).withdraw(STAKE_AMOUNT.div(2));
       await tx.wait();
-      expect(await this.stakeV2.stakeAmount(this.signers.user1.address)).to.equal(
+
+      stakeAmount_expected = await this.stakeV2.stakeAmount(this.signers.user1.address);
+      expect(stakeAmount_expected).to.equal(
         STAKE_AMOUNT.div(2),
         "remaining staked amount wrong",
       );
     });
 
+
     /**
      * Time Period : 10
+     * user has staked 1/2 amount , for 2 days , unlocked (add that to previous userTotalRewards)
      * check rewards : 8 * full amount + 2 * half amount = 9 * full amount
      */
-    it("check rewards after 1 period after end of lock time option 1 (7 days)", async function () {
-      await setTime(stakeTime1 + 10 * timePeriod);
+    it("*** PERIOD 10 : check rewards after 2 days with 1/2 amount staked", async function () {
+      await setTime(timeStake1 + 10 * timePeriod);
+      logCurrentTimeRelative();
+
       lastRewardsContract = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       console.log("userTotalRewards_contract =", lastRewardsContract);
-      const userTotalRewards_expected = STAKE_AMOUNT.mul((7 + 2 * unlockedRewardsFactor) * timePeriod);
+      userTotalRewards_expected = userTotalRewards_expected.add(stakeAmount_expected.mul(2 * timePeriod * unlockedRewardsFactor));
       console.log("userTotalRewards_expected =", userTotalRewards_expected);
       expect(lastRewardsContract).to.be.closeTo(userTotalRewards_expected, userTotalRewards_expected.div(100)); // allow 1% error
     });
@@ -409,28 +435,34 @@ export function basicTestsV2(
       expect(await this.stakeV2.stakeAmount(this.signers.user1.address)).to.equal(0, "remaining staked amount not 0");
     });
 
+
     /**
      * Time Period : 11
+     * nothing was staked during the last period, so no additional rewards
      */
-    it("no change in rewards 1 period after unstaking", async function () {
-      console.log("Time Period : 11");
-      await setTime(stakeTime1 + 11 * timePeriod);
+    it("*** PERIOD 11 : no change in rewards 1 period after unstaking", async function () {
+      await setTime(timeStake1 + 11 * timePeriod);
+      logCurrentTimeRelative();
+
       const userTotalRewards_contract = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       console.log("userTotalRewards_contract =", userTotalRewards_contract);
-      expect(userTotalRewards_contract).to.be.closeTo(lastRewardsContract, "1000000000000000000000");
+      expect(userTotalRewards_contract).to.be.eq(lastRewardsContract); // , "1000000000000000000000");
       console.log(
         "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n",
       );
     });
 
-    it("check staked balance and remaining lock time", async function () {
+
+    it("staked balance and remaining lock time should be both 0", async function () {
       const remainingLockTime = await this.stakeV2.connect(this.signers.user1).remainingLockPeriod_msgSender();
-      console.log("remainingLockTime =", remainingLockTime, remainingLockTime / DAYS);
+      // console.log("remainingLockTime =", remainingLockTime, remainingLockTime / DAYS);
       const stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
-      console.log("stakeBalance      =", hre.ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
-      expect(remainingLockTime).to.eq(0, "remainingLockTime is not 0 - funds still locked");
+      // console.log("stakeBalance      =", hre.ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
+      expect(remainingLockTime).to.eq(0, "remainingLockTime is not 0");
       expect(stakeBalance).to.eq(0, "stakeBalance is not 0");
     });
+
+    
 
     it("user stake again - same amount again - option 2 = 14 days lock time", async function () {
       const userBalance = await this.stakeToken.balanceOf(this.signers.user1.address);
@@ -439,7 +471,7 @@ export function basicTestsV2(
       const tx = await this.stakeV2.connect(this.signers.user1).stakelockTimeChoice(STAKE_AMOUNT, 2);
       await tx.wait();
 
-      stakeTime2 = await getTimestamp();
+      timeStake2 = await getTimestamp();
 
       stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
       console.log("stakeBalance =", hre.ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
@@ -457,7 +489,7 @@ export function basicTestsV2(
      * There may be a difference of one block time of rewards
      */
     it("after the 2nd staking, claimable rewards should have become accumulated reward", async function () {
-      const blockTime = await getTimestamp();
+      const timeBlockchain = await getTimestamp();
       const userAccumulatedRewards_expected = STAKE_AMOUNT.mul((7 + 2 * unlockedRewardsFactor) * timePeriod);
       console.log("userAccumulatedRewards_expected =", userAccumulatedRewards_expected);
 
@@ -478,6 +510,7 @@ export function basicTestsV2(
      * At most 20 sec should have been passed since then, accumulating a small userClaimableRewards balance
      */
     it("after staking again, userClaimableRewards should be (amount * 14 days)", async function () {
+      await waitTime(60); // wait 1 minute
       userClaimableRewards_contract = await this.stakeV2.connect(this.signers.user1).userClaimableRewards_msgSender();
 
       expect(userClaimableRewards_contract).to.eq(
@@ -490,7 +523,7 @@ export function basicTestsV2(
       // wait 10 time periods
       if (hre.network.name != "hardhat") this.timeout(10 * timePeriod * 1000 + TIMEOUT_BLOCKCHAIN_ms);
       timeNow = await waitTime(10 * timePeriod);
-      timeRelative = timeNow - startTime;
+      timeRelative = timeNow - timeStart;
 
       expect(userClaimableRewards_contract).to.eq(
         stakeBalance.mul(14 * DAYS),
@@ -550,7 +583,7 @@ export function basicTestsV2(
      */
     it("day 12 : topUp stake amount", async function () {
       timeNow = await waitTime(2 * timePeriod);
-      timeRelative = timeNow - startTime;
+      timeRelative = timeNow - timeStart;
 
       const userBalance = await this.stakeToken.balanceOf(this.signers.user1.address);
 
@@ -594,7 +627,7 @@ export function basicTestsV2(
 
     it("user can not topUp stake amount after the lockTimePeriod is over", async function () {
       timeNow = await waitTime(15 * timePeriod); // wait 15 days
-      timeRelative = timeNow - startTime;
+      timeRelative = timeNow - timeStart;
 
       await expect(this.stakeV2.connect(this.signers.user1).stakelockTimeChoice(STAKE_AMOUNT, 0)).to.be.reverted;
 
@@ -606,7 +639,7 @@ export function basicTestsV2(
       expect(lastStakeBalance).to.equal(STAKE_AMOUNT.mul(2), "staked amount is wrong");
 
       // timeNow = await waitTime(15 * timePeriod); // wait 10 days
-      // timeRelative = timeNow - startTime;
+      // timeRelative = timeNow - timeStart;
 
       const remainingLockPeriod = await this.stakeV2.connect(this.signers.user1).remainingLockPeriod_msgSender();
       console.log("remainingLockPeriod (sec/days) =", remainingLockPeriod, remainingLockPeriod / DAYS);
@@ -644,7 +677,7 @@ export function basicTestsV2(
       const tx2 = await this.stakeV2.connect(this.signers.user1).withdrawAll();
       await tx2.wait();
 
-      blocktime = await getTimestamp();
+      timeBlockchain = await getTimestamp();
 
       console.log("(_unlockedRewardsFactor / REWARDS_DIV) =", _unlockedRewardsFactor / REWARDS_DIV);
 
@@ -652,10 +685,10 @@ export function basicTestsV2(
       // expectedRewards_1 = 5 days * 2000 token staked in remaining lock period
       // expectedRewards_2 = 5 days * 2000 token staked in after lock period
       const expectedRewards_1 = lastStakeBalance.mul(5 * DAYS);
-      console.log("expectedRewards_1                            = ", expectedRewards_1.toString());
+      console.log("expectedRewards_1                            = ", expectedRewards_1);
       const expectedRewards_2 = lastStakeBalance.mul(10 * DAYS * (_unlockedRewardsFactor / REWARDS_DIV));
-      console.log("expectedRewards_2                            = ", expectedRewards_2.toString());
-      console.log("userAccumulatedRewards_contract after top up =", userAccumulatedRewards_contract_prev.toString());
+      console.log("expectedRewards_2                            = ", expectedRewards_2);
+      console.log("userAccumulatedRewards_contract after top up =", userAccumulatedRewards_contract_prev);
 
       // BigNumber.from("3542406500000000000000000000"); // TODO
       expectedRewards = expectedRewards
@@ -663,7 +696,7 @@ export function basicTestsV2(
         .add(expectedRewards_2)
         .add(userAccumulatedRewards_contract_prev);
 
-      console.log(">>>>>> expectedRewards                       =", expectedRewards.toString());
+      console.log(">>>>>> expectedRewards                       =", expectedRewards);
 
       // stake amount should be zero
       stakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
@@ -681,28 +714,28 @@ export function basicTestsV2(
 
       console.log(
         "userAccumulatedRewards_contract_after_unstake=",
-        userAccumulatedRewards_contract_after_unstake.toString(),
+        userAccumulatedRewards_contract_after_unstake,
       );
 
       // log timestamp
       timeNow = await getTimestamp();
-      timeRelative = timeNow - startTime;
+      timeRelative = timeNow - timeStart;
       console.log("timeNow      =", timeNow);
       console.log("timeRelative =", timeRelative);
       console.log("simulated time : seconds / timePeriods", timeRelative, timeRelative / timePeriod);
       console.log("----------------------------------------------------------------------------");
 
       const userClaimableRewards = await this.stakeV2.connect(this.signers.user1).userClaimableRewards_msgSender();
-      console.log(">>>>>> userClaimableRewards   =", userClaimableRewards.toString());
+      console.log(">>>>>> userClaimableRewards   =", userClaimableRewards);
 
       const userAccumulatedRewards = await this.stakeV2.connect(this.signers.user1).userAccumulatedRewards_msgSender();
-      console.log(">>>>>> userAccumulatedRewards =", userAccumulatedRewards.toString());
+      console.log(">>>>>> userAccumulatedRewards =", userAccumulatedRewards);
 
       const userTotalRewards = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
-      console.log(">>>>>> userTotalRewards       =", userTotalRewards.toString());
+      console.log(">>>>>> userTotalRewards       =", userTotalRewards);
 
       const earnedRewardTokens = await this.stakeV2.connect(this.signers.user1).getEarnedRewardTokens_msgSender();
-      console.log(">>>>>> earnedRewardTokens     =", earnedRewardTokens.toString());
+      console.log(">>>>>> earnedRewardTokens     =", earnedRewardTokens);
 
       // >>>>>>>>>>>>>>>>  WAIT 5 time periods - user should not receive any additional rewards <<<<<<<<<<<<<<<<<<<<<<
       const waitingTime = 5 * timePeriod;
@@ -712,7 +745,7 @@ export function basicTestsV2(
 
       // log timestamp
       timeNow = await getTimestamp();
-      timeRelative = timeNow - startTime;
+      timeRelative = timeNow - timeStart;
       console.log("timeNow      =", timeNow);
       console.log("timeRelative =", timeRelative);
       console.log("simulated time : seconds / timePeriods", timeRelative, timeRelative / timePeriod);
@@ -721,18 +754,18 @@ export function basicTestsV2(
       const userClaimableRewards_later = await this.stakeV2
         .connect(this.signers.user1)
         .userClaimableRewards_msgSender();
-      console.log(">>>>>> userClaimableRewards_later   =", userClaimableRewards_later.toString());
+      console.log(">>>>>> userClaimableRewards_later   =", userClaimableRewards_later);
 
       const userAccumulatedRewards_later = await this.stakeV2
         .connect(this.signers.user1)
         .userAccumulatedRewards_msgSender();
-      console.log(">>>>>> userAccumulatedRewards_later =", userAccumulatedRewards_later.toString());
+      console.log(">>>>>> userAccumulatedRewards_later =", userAccumulatedRewards_later);
 
       const userTotalRewards_later = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
-      console.log(">>>>>> userTotalRewards_later       =", userTotalRewards_later.toString());
+      console.log(">>>>>> userTotalRewards_later       =", userTotalRewards_later);
 
       const earnedRewardTokens_later = await this.stakeV2.connect(this.signers.user1).getEarnedRewardTokens_msgSender();
-      console.log(">>>>>> earnedRewardTokens_later     =", earnedRewardTokens_later.toString());
+      console.log(">>>>>> earnedRewardTokens_later     =", earnedRewardTokens_later);
 
       expect(userClaimableRewards_later).to.equal(userClaimableRewards, "userClaimableRewards changed after unstaking");
       expect(userAccumulatedRewards_later).to.equal(
@@ -759,16 +792,16 @@ export function basicTestsV2(
       // const rewardsStake2 = STAKE_AMOUNT.mul(10).mul(timePeriod);
       // const userAccumulatedRewards_expected = rewardsStake1.add(rewardsStake2);
 
-      const userAccumulatedRewards_expected = expectedRewards; // STAKE_AMOUNT.mul(stakeTime2 - stakeTime1).add( STAKE_AMOUNT.mul(2).mul(blocktime - stakeTime2) );
+      const userAccumulatedRewards_expected = expectedRewards; // STAKE_AMOUNT.mul(timeStake2 - timeStake1).add( STAKE_AMOUNT.mul(2).mul(timeBlockchain - timeStake2) );
 
       const userAccumulatedRewards_contract = await this.stakeV2
         .connect(this.signers.user1)
         .userAccumulatedRewards_msgSender();
 
       difference = userAccumulatedRewards_contract.sub(userAccumulatedRewards_expected).div(lastStakeBalance).abs();
-      console.log("userAccumulatedRewards_expected =", userAccumulatedRewards_expected.toString());
-      console.log("userAccumulatedRewards_contract =", userAccumulatedRewards_contract.toString());
-      console.log("userAccumulatedRewards : difference contract vers expected =", difference.toString());
+      console.log("userAccumulatedRewards_expected =", userAccumulatedRewards_expected);
+      console.log("userAccumulatedRewards_contract =", userAccumulatedRewards_contract);
+      console.log("userAccumulatedRewards : difference contract vers expected =", difference);
       expect(difference).to.lte(60, "userAccumulatedRewards is too far off");
 
       /**
@@ -776,7 +809,7 @@ export function basicTestsV2(
        */
       const userTotalRewards_contract = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       difference = userAccumulatedRewards_contract.sub(userTotalRewards_contract).div(lastStakeBalance).abs();
-      console.log("userTotalRewards       : difference contract vers expected =", difference.toString());
+      console.log("userTotalRewards       : difference contract vers expected =", difference);
       expect(difference).to.lte(1, "userTotalRewards is too far off");
     });
 

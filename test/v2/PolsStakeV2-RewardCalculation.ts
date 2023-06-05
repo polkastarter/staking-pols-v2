@@ -94,26 +94,26 @@ const testCases: [Parameter, BigNumberish][] = [
   [[amount, 24 , 100 , 60 , 10 , true, false, REWARDS_DIV],  0 ],  //   [ 'end', 'stake', 'current', 'unlock']
 
   // currentTime < stakeTime
-  [[amount, 60 , 100 , 24 , 10 , true, false, REWARDS_DIV],  -1 ],
-  [[amount, 24 , 60 , 10 , 100 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 24 , 100 , 10 , 60 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 24 , 10 , 100 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 100 , 10 , 24 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 24 , 10 , 60 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 60 , 10 , 24 , true, false, REWARDS_DIV],  -1 ],  
+  [[amount, 60 , 100 , 24 , 10 , true, false, REWARDS_DIV],  0 ],
+  [[amount, 24 , 60 , 10 , 100 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 24 , 100 , 10 , 60 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 60 , 24 , 10 , 100 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 60 , 100 , 10 , 24 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 100 , 24 , 10 , 60 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 100 , 60 , 10 , 24 , true, false, REWARDS_DIV],  0 ],  
   
   // unlockTime < stakeTime
-  [[amount, 24 , 10 , 60 , 100 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 24 , 10 , 100 , 60 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 10 , 24 , 100 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 10 , 100 , 24 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 10 , 24 , 60 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 10 , 60 , 24 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 10 , 24 , 100 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 10 , 100 , 24 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 24 , 100 , 10 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 24 , 60 , 10 , true, false, REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 60 , 24 , 10 , true, false, REWARDS_DIV],  -1 ],
+  [[amount, 24 , 10 , 60 , 100 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 24 , 10 , 100 , 60 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 60 , 10 , 24 , 100 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 60 , 10 , 100 , 24 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 100 , 10 , 24 , 60 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 100 , 10 , 60 , 24 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 60 , 10 , 24 , 100 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 60 , 10 , 100 , 24 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 60 , 24 , 100 , 10 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 100 , 24 , 60 , 10 , true, false, REWARDS_DIV],  0 ],  
+  [[amount, 100 , 60 , 24 , 10 , true, false, REWARDS_DIV],  0 ],
 
   
   // *** lockedRewardsCurrent = true ***
@@ -131,26 +131,26 @@ const testCases: [Parameter, BigNumberish][] = [
   [[amount, 24 , 100 , 60 , 10 , true, true , REWARDS_DIV],  0 ],  //   [ 'end', 'stake', 'current', 'unlock']
 
   // currentTime < stakeTime
-  [[amount, 60 , 100 , 24 , 10 , true, true , REWARDS_DIV],  -1 ],
-  [[amount, 24 , 60 , 10 , 100 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 24 , 100 , 10 , 60 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 24 , 10 , 100 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 100 , 10 , 24 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 24 , 10 , 60 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 60 , 10 , 24 , true, true , REWARDS_DIV],  -1 ],  
+  [[amount, 60 , 100 , 24 , 10 , true, true , REWARDS_DIV],  0 ],
+  [[amount, 24 , 60 , 10 , 100 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 24 , 100 , 10 , 60 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 60 , 24 , 10 , 100 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 60 , 100 , 10 , 24 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 100 , 24 , 10 , 60 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 100 , 60 , 10 , 24 , true, true , REWARDS_DIV],  0 ],  
   
   // unlockTime < stakeTime
-  [[amount, 24 , 10 , 60 , 100 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 24 , 10 , 100 , 60 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 10 , 24 , 100 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 10 , 100 , 24 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 10 , 24 , 60 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 10 , 60 , 24 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 10 , 24 , 100 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 10 , 100 , 24 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 60 , 24 , 100 , 10 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 24 , 60 , 10 , true, true , REWARDS_DIV],  -1 ],  
-  [[amount, 100 , 60 , 24 , 10 , true, true , REWARDS_DIV],  -1 ],
+  [[amount, 24 , 10 , 60 , 100 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 24 , 10 , 100 , 60 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 60 , 10 , 24 , 100 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 60 , 10 , 100 , 24 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 100 , 10 , 24 , 60 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 100 , 10 , 60 , 24 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 60 , 10 , 24 , 100 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 60 , 10 , 100 , 24 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 60 , 24 , 100 , 10 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 100 , 24 , 60 , 10 , true, true , REWARDS_DIV],  0 ],  
+  [[amount, 100 , 60 , 24 , 10 , true, true , REWARDS_DIV],  0 ],
 ];
 
 /**
@@ -237,12 +237,12 @@ describe("PolsStakeV2 : " + filenameHeader, function () {
   it("calculates rewards correctly for unlockedRewardsFactor = 0.5", async function () {
     for (var testCase of testCases) {
       console.log(...testCase);
-      if (testCase[1] >= 0) {
+      // if (testCase[1] >= 0) {
         const reward = await this.stakeV2._userClaimableRewardsCalculation(...testCase[0]);
         expect(reward).to.eq(testCase[1]);
-      } else {
-        await expect(this.stakeV2._userClaimableRewardsCalculation(...testCase[0])).to.be.reverted;
-      }
+      // } else {
+      //   await expect(this.stakeV2._userClaimableRewardsCalculation(...testCase[0])).to.be.reverted;
+      // }
     }
   });
 

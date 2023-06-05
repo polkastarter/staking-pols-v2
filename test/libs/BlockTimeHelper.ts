@@ -18,6 +18,18 @@ export const consoleLog_timestamp = async (t0: number) => {
   console.log("currentTime =", currentTime, "period =", (currentTime - t0) / timePeriod());
 };
 
+
+// console.log a string and a time in human readable format converted to days
+export function logStringTime(text: string, t: number) {
+  console.log(text, (t / timePeriod()).toFixed(3) );
+};
+
+export const logCurrentTimeRelative = async () => {
+  const currentTime = await getTimestamp();
+  logStringTime("current relative time :", currentTime - gTestStartTime);
+};
+
+
 /**
  * @dev helper function to get block.timestamp from hardhat provider
  * @returns block.timestamp in unix epoch time (seconds)
