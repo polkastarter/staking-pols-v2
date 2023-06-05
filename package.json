@@ -3,8 +3,8 @@
   "description": "staking contract with various time lock options and time based upfront rewards",
   "version": "1.0.0",
   "author": {
-    "name": "SvenMeyer",
-    "url": "https://github.com/SvenMeyer"
+    "name": "Polkastarter",
+    "url": "https://github.com/polkastarter/staking-pols-v2"
   },
   "devDependencies": {
     "@ethersproject/abi": "^5.7.0",
@@ -70,7 +70,8 @@
     "clean": "rimraf ./artifacts ./cache ./coverage ./types ./coverage.json && pnpm typechain",
     "compile": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat compile",
     "coverage": "hardhat coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"test/**/*.ts\" && pnpm typechain",
-    "deploy:contracts": "hardhat deploy",
+    "deploy": "hardhat run scripts/deploy.ts",
+    "deploy-verify": "hardhat run scripts/deploy-verify.ts",
     "lint": "pnpm lint:sol && pnpm lint:ts && pnpm prettier:check",
     "lint:sol": "solhint --max-warnings 0 \"contracts/**/*.sol\"",
     "lint:ts": "eslint --ignore-path ./.eslintignore --ext .js,.ts .",
@@ -82,7 +83,8 @@
     "test": "hardhat test",
     "testV1": "hardhat test test/v1/*.ts",
     "testV2": "hardhat test test/v2/*.ts",
-    "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain"
+    "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain",
+    "audit": "rm -rf artifacts/ && rm -rf cache/ && rm -rf types/ && slither ."
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.0"
