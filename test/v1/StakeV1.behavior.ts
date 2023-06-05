@@ -18,7 +18,7 @@ const DECMULBN = BigNumber.from(10).pow(DECIMALS);
 const stakeAmount = DECMULBN.mul(1000); // 1000 token
 const TIMEOUT_BLOCKCHAIN_ms = 10 * 60 * 1000; // 10 minutes
 
-export function basicTests(_timePeriod: number): void {
+export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
   const timePeriod = _timePeriod;
   console.log("timePeriod =", timePeriod, "seconds");
 

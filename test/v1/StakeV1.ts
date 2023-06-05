@@ -1,19 +1,11 @@
-// import hre from "hardhat";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { ethers, network } from "hardhat";
 
-import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
+import type { Signers } from "../types";
+import { deployStakeV1Fixture } from "./StakeV1.fixture";
+import { shouldBehaveLikeStakeV1 } from "./StakeV1.behavior";
 
-import type { PolkastarterToken } from "../../types/contracts/test/PolkastarterToken.sol/PolkastarterToken";
-import type { PolkastarterToken__factory } from "../../types/factories/contracts/test/PolkastarterToken.sol/PolkastarterToken__factory";
-
-import type { RewardToken } from "../../types/contracts/test/RewardToken";
-import type { RewardToken__factory } from "../../types/factories/contracts/test/RewardToken__factory";
-
-import type { PolsStake } from "../../types/contracts/test/PolsStake";
-import type { PolsStake__factory } from "../../types/factories/contracts/test/PolsStake__factory";
-
-import { Signers } from "../types";
-import { basicTests } from "./PolsStake.basicTests";
 import { expect } from "chai";
 import * as path from "path";
 
@@ -61,35 +53,26 @@ describe("PolsStake : " + filenameHeader, function () {
       process.exit(1);
     }
 
-    // deploy stake token
-    const stakeTokenFactory: PolkastarterToken__factory = <PolkastarterToken__factory>await ethers.getContractFactory("PolkastarterToken", admin);
-    const pols: PolkastarterToken = <PolkastarterToken>await stakeTokenFactory.deploy(admin.address);
-    await pols.deployed();
-    this.stakeToken = pols;
+    this.loadFixture = loadFixture;
+
+    const { stakeToken, rewardToken, stakeV1 } = await this.loadFixture(deployStakeV1Fixture);
+
+    this.stakeToken = stakeToken;
+    this.rewardToken = rewardToken;
+    this.stake = stakeV1;
+
     console.log("stakeToken     deployed to :", this.stakeToken.address);
-
-    // this.rewardToken = this.stakeToken; // TEST TODO
-    // console.log("rewardToken     deployed to :", this.rewardToken.address);
-
-    // deploy reward token we will use later for recovery test
-    const rewardTokenFactory: RewardToken__factory = <RewardToken__factory>await ethers.getContractFactory("RewardToken");
-    this.rewardToken = <RewardToken>await rewardTokenFactory.connect(admin).deploy();
-    await this.rewardToken.deployed();
-
-    // deploy staking contract
-    const polsStakeFactory: PolsStake__factory = <PolsStake__factory>await ethers.getContractFactory("PolsStake");
-    this.stake = <PolsStake>await polsStakeFactory.connect(admin).deploy(this.stakeToken.address, lockPeriod);
-    await this.stake.deployed();
-
+    console.log("rewardToken    deployed to :", this.rewardToken.address);
     console.log("stake contract deployed to :", this.stake.address);
   });
 
-  basicTests(timePeriod);
+  shouldBehaveLikeStakeV1(timePeriod);
 
   // this.rewardToken = this.stakeToken; // TEST TODO
   // basicTests(timePeriod);
 
-  // "accidentally send a token directly to the contract ... admin can recover them"
+  // accidentally send a token directly to the contract ... admin can recover them
+  // we (re)use the reward token, but it could be any token, except the stake token
   describe("test removeOtherERC20Tokens()", function () {
     if (network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms);
 
