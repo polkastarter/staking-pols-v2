@@ -87,6 +87,6 @@
     "audit": "rm -rf artifacts/ && rm -rf cache/ && rm -rf types/ && slither ."
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.9.0"
+    "@openzeppelin/contracts": "^4.9.1"
   }
 }
