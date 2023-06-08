@@ -139,6 +139,12 @@ const config: HardhatUserConfig = {
         },
       },
     ],
+    overrides: {
+      "contracts/test/POLS-Multichain-BSC.sol": {
+        version: "0.8.2",
+        settings: {}
+      }
+    },
   },
   typechain: {
     outDir: "types",
