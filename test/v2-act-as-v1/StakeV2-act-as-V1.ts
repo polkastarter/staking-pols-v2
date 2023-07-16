@@ -1,5 +1,4 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-// import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { ethers, network } from "hardhat";
 
 import type { Signers } from "../types";
@@ -55,9 +54,9 @@ describe("PolsStake : " + filenameHeader, function () {
     this.rewardToken = rewardToken;
     this.stakeV2 = stakeV2;
 
-    console.log("stakeToken     deployed to :", await this.stakeToken.getAddress());
-    console.log("rewardToken    deployed to :", await this.rewardToken.getAddress());
-    console.log("stake contract deployed to :", await this.stakeV2.getAddress());
+    console.log("stakeToken        deployed to :", await this.stakeToken.getAddress());
+    console.log("rewardToken       deployed to :", await this.rewardToken.getAddress());
+    console.log("stake contract v2 deployed to :", await this.stakeV2.getAddress());
   });
 
   shouldBehaveLikeStakeV2(timePeriod);
