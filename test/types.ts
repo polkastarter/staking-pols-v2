@@ -1,4 +1,4 @@
-import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
+import type { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/dist/src/signer-with-address";
 
 import type { PolkastarterToken } from "../types/contracts/test/PolkastarterToken.sol/PolkastarterToken";
 import type { RewardToken } from "../types/contracts/test/RewardToken";

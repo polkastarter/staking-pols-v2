@@ -1,5 +1,5 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
+// import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { ethers, network } from "hardhat";
 
 import type { Signers } from "../types";
@@ -24,31 +24,25 @@ describe("PolsStake : " + filenameHeader, function () {
 
   before(async function () {
     this.signers = {} as Signers;
-    const signers: SignerWithAddress[] = await ethers.getSigners();
-    const admin: SignerWithAddress = signers[0];
-    // const user1: SignerWithAddress = signers[1];
-    // const user2: SignerWithAddress = signers[2];
+    const signers = await ethers.getSigners();
     this.signers.admin = signers[0];
     this.signers.user1 = signers[1];
     this.signers.user2 = signers[2];
 
-    const gasPriceString = await ethers.provider.getGasPrice();
-    console.log("Current gas price: " + gasPriceString);
+    console.log("deployer account           :", await this.signers.admin.getAddress());
 
-    console.log("deployer account           :", this.signers.admin.address);
-
-    const deployerBalance = await ethers.provider.getBalance(this.signers.admin.address);
-    console.log("deployer account balance   :", ethers.utils.formatUnits(deployerBalance));
-    if (deployerBalance.lt(ethers.utils.parseUnits("1.0"))) {
+    const deployerBalance = await ethers.provider.getBalance(this.signers.admin.getAddress());
+    console.log("deployer account balance   :", ethers.formatUnits(deployerBalance));
+    if (deployerBalance < (ethers.parseUnits("1.0"))) {
       console.error("ERROR: Balance too low");
       process.exit(1);
     }
 
-    console.log("user1    account           :", this.signers.user1.address);
+    console.log("user1    account           :", await this.signers.user1.getAddress());
 
-    const user1Balance = await ethers.provider.getBalance(this.signers.user1.address);
-    console.log("user1    account balance   :", ethers.utils.formatUnits(user1Balance));
-    if (user1Balance.lt(ethers.utils.parseUnits("1.0"))) {
+    const user1Balance = await ethers.provider.getBalance(this.signers.user1.getAddress());
+    console.log("user1    account balance   :", ethers.formatUnits(user1Balance));
+    if (user1Balance < (ethers.parseUnits("1.0"))) {
       console.error("ERROR: Balance too low");
       process.exit(1);
     }
@@ -61,9 +55,9 @@ describe("PolsStake : " + filenameHeader, function () {
     this.rewardToken = rewardToken;
     this.stake = stakeV1;
 
-    console.log("stakeToken     deployed to :", this.stakeToken.address);
-    console.log("rewardToken    deployed to :", this.rewardToken.address);
-    console.log("stake contract deployed to :", this.stake.address);
+    console.log("stakeToken     deployed to :", await this.stakeToken.getAddress());
+    console.log("rewardToken    deployed to :", await this.rewardToken.getAddress());
+    console.log("stake contract deployed to :", await this.stake.getAddress());
   });
 
   shouldBehaveLikeStakeV1(timePeriod);
@@ -77,18 +71,18 @@ describe("PolsStake : " + filenameHeader, function () {
     if (network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms);
 
     it("a token is accidentally being send directly to staking contract => recover", async function () {
-      const amount = "10" + "0".repeat(18);
-      const balance = await this.rewardToken.balanceOf(this.signers.admin.address);
+      const amount: bigint = 10n ** 18n;
+      const balance = await this.rewardToken.balanceOf(this.signers.admin);
 
-      const tx1 = await this.rewardToken.connect(this.signers.admin).transfer(this.stake.address, amount);
+      const tx1 = await this.rewardToken.connect(this.signers.admin).transfer(this.stake, amount);
       await tx1.wait();
 
-      expect(await this.rewardToken.balanceOf(this.signers.admin.address)).to.equal(balance.sub(amount));
+      expect(await this.rewardToken.balanceOf(this.signers.admin.getAddress())).to.equal(balance - amount);
 
-      const tx2 = await this.stake.connect(this.signers.admin).removeOtherERC20Tokens(this.rewardToken.address);
+      const tx2 = await this.stake.connect(this.signers.admin).removeOtherERC20Tokens(this.rewardToken);
       await tx2.wait();
 
-      expect(await this.rewardToken.balanceOf(this.signers.admin.address)).to.equal(balance);
+      expect(await this.rewardToken.balanceOf(this.signers.admin.getAddress())).to.equal(balance);
     });
   });
 

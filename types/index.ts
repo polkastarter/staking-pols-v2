@@ -42,6 +42,16 @@ export type { PolkastarterToken } from "./contracts/test/PolkastarterToken.sol/P
 export { PolkastarterToken__factory } from "./factories/contracts/test/PolkastarterToken.sol/PolkastarterToken__factory";
 export type { StandardToken } from "./contracts/test/PolkastarterToken.sol/StandardToken";
 export { StandardToken__factory } from "./factories/contracts/test/PolkastarterToken.sol/StandardToken__factory";
+export type { AnyswapV4ERC20 } from "./contracts/test/POLS-Multichain-BSC.sol/AnyswapV4ERC20";
+export { AnyswapV4ERC20__factory } from "./factories/contracts/test/POLS-Multichain-BSC.sol/AnyswapV4ERC20__factory";
+export type { IAnyswapV3ERC20 } from "./contracts/test/POLS-Multichain-BSC.sol/IAnyswapV3ERC20";
+export { IAnyswapV3ERC20__factory } from "./factories/contracts/test/POLS-Multichain-BSC.sol/IAnyswapV3ERC20__factory";
+export type { IApprovalReceiver } from "./contracts/test/POLS-Multichain-BSC.sol/IApprovalReceiver";
+export { IApprovalReceiver__factory } from "./factories/contracts/test/POLS-Multichain-BSC.sol/IApprovalReceiver__factory";
+export type { IERC2612 } from "./contracts/test/POLS-Multichain-BSC.sol/IERC2612";
+export { IERC2612__factory } from "./factories/contracts/test/POLS-Multichain-BSC.sol/IERC2612__factory";
+export type { ITransferReceiver } from "./contracts/test/POLS-Multichain-BSC.sol/ITransferReceiver";
+export { ITransferReceiver__factory } from "./factories/contracts/test/POLS-Multichain-BSC.sol/ITransferReceiver__factory";
 export type { PolsStake } from "./contracts/test/PolsStake";
 export { PolsStake__factory } from "./factories/contracts/test/PolsStake__factory";
 export type { RewardToken } from "./contracts/test/RewardToken";
