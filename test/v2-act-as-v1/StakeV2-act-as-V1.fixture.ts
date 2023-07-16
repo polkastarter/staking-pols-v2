@@ -7,10 +7,10 @@ import type { PolkastarterToken__factory } from "../../types/factories/contracts
 import type { RewardToken } from "../../types/contracts/test/RewardToken";
 import type { RewardToken__factory } from "../../types/factories/contracts/test/RewardToken__factory";
 
-import type { PolsStake } from "../../types/contracts/test/PolsStake";
-import type { PolsStake__factory } from "../../types/factories/contracts/test/PolsStake__factory";
+import type { PolsStakeV2 } from "../../types/contracts/PolsStakeV2";
+import type { PolsStakeV2__factory } from "../../types/factories/contracts/PolsStakeV2__factory";
 
-export async function deployStakeV1Fixture(): Promise<{ stakeToken: PolkastarterToken, rewardToken: RewardToken, stakeV1: PolsStake }> {
+export async function deployStakeV2Fixture(): Promise<{ stakeToken: PolkastarterToken, rewardToken: RewardToken, stakeV2: PolsStakeV2 }> {
   const signers = await ethers.getSigners();
   const admin = signers[0];
 
@@ -26,12 +26,12 @@ export async function deployStakeV1Fixture(): Promise<{ stakeToken: Polkastarter
   await rewardToken.waitForDeployment();
 
 
-  // deploy staking v1
+  // deploy staking v2
   const lockTimePeriod: number = 7 * 24 * 60 * 60;
-  const stakeV1Factory: PolsStake__factory = <PolsStake__factory>await ethers.getContractFactory("PolsStake");
-  const stakeV1: PolsStake = <PolsStake>await stakeV1Factory.connect(admin).deploy(stakeToken, lockTimePeriod);
-  await stakeV1.waitForDeployment();
+  const stakeV2Factory: PolsStakeV2__factory = <PolsStakeV2__factory>await ethers.getContractFactory("PolsStakeV2");
+  const stakeV2: PolsStakeV2 = <PolsStakeV2>await stakeV2Factory.connect(admin).deploy(stakeToken);
+  await stakeV2.waitForDeployment();
 
 
-  return { stakeToken, rewardToken, stakeV1 };
+  return { stakeToken, rewardToken, stakeV2 };
 }

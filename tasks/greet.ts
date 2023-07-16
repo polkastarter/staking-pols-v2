@@ -13,7 +13,7 @@ task("task:setGreeting")
 
     const greeter = await ethers.getContractAt("Greeter", Greeter.address);
 
-    await greeter.connect(signers[taskArguments.account]).setGreeting(taskArguments.greeting);
+    // await greeter.connect(signers[taskArguments.account]).setGreeting(taskArguments.greeting);
 
     console.log("Greeting set: ", taskArguments.greeting);
   });

@@ -3,8 +3,8 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { ethers, network } from "hardhat";
 
 import type { Signers } from "../types";
-import { deployStakeV1Fixture } from "./StakeV1.fixture";
-import { shouldBehaveLikeStakeV1 } from "./StakeV1.behavior";
+import { deployStakeV2Fixture } from "./StakeV2-act-as-V1.fixture";
+import { shouldBehaveLikeStakeV2 } from "./StakeV2-act-as-V1.behavior";
 
 import { expect } from "chai";
 import * as path from "path";
@@ -49,18 +49,18 @@ describe("PolsStake : " + filenameHeader, function () {
 
     this.loadFixture = loadFixture;
 
-    const { stakeToken, rewardToken, stakeV1 } = await this.loadFixture(deployStakeV1Fixture);
+    const { stakeToken, rewardToken, stakeV2 } = await this.loadFixture(deployStakeV2Fixture);
 
     this.stakeToken = stakeToken;
     this.rewardToken = rewardToken;
-    this.stake = stakeV1;
+    this.stakeV2 = stakeV2;
 
     console.log("stakeToken     deployed to :", await this.stakeToken.getAddress());
     console.log("rewardToken    deployed to :", await this.rewardToken.getAddress());
-    console.log("stake contract deployed to :", await this.stake.getAddress());
+    console.log("stake contract deployed to :", await this.stakeV2.getAddress());
   });
 
-  shouldBehaveLikeStakeV1(timePeriod);
+  shouldBehaveLikeStakeV2(timePeriod);
 
   // this.rewardToken = this.stakeToken; // TEST TODO
   // basicTests(timePeriod);
@@ -74,12 +74,12 @@ describe("PolsStake : " + filenameHeader, function () {
       const amount: bigint = 10n ** 18n;
       const balance = await this.rewardToken.balanceOf(this.signers.admin);
 
-      const tx1 = await this.rewardToken.connect(this.signers.admin).transfer(this.stake, amount);
+      const tx1 = await this.rewardToken.connect(this.signers.admin).transfer(this.stakeV2, amount);
       await tx1.wait();
 
       expect(await this.rewardToken.balanceOf(this.signers.admin)).to.equal(balance - amount);
 
-      const tx2 = await this.stake.connect(this.signers.admin).removeOtherERC20Tokens(this.rewardToken);
+      const tx2 = await this.stakeV2.connect(this.signers.admin).removeOtherERC20Tokens(this.rewardToken);
       await tx2.wait();
 
       expect(await this.rewardToken.balanceOf(this.signers.admin)).to.equal(balance);
