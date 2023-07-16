@@ -557,7 +557,7 @@ export function shouldBehaveLikeStakeV1(_timePeriod: number): void {
     });
 
     /**
-     * test for reward token allocation manipulaion - after withdrawAll()
+     * test for reward token allocation manipulation - after withdrawAll()
      */
     it("after withdrawAll, user should not be able to increase rewards by calling withdraw(0)", async function () {
       const totalRewards_before = await this.stake.connect(this.signers.user1).userTotalRewards_msgSender();

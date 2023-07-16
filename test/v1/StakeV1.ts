@@ -31,7 +31,7 @@ describe("PolsStake : " + filenameHeader, function () {
 
     console.log("deployer account           :", await this.signers.admin.getAddress());
 
-    const deployerBalance = await ethers.provider.getBalance(this.signers.admin.getAddress());
+    const deployerBalance = await ethers.provider.getBalance(this.signers.admin);
     console.log("deployer account balance   :", ethers.formatUnits(deployerBalance));
     if (deployerBalance < (ethers.parseUnits("1.0"))) {
       console.error("ERROR: Balance too low");
@@ -40,7 +40,7 @@ describe("PolsStake : " + filenameHeader, function () {
 
     console.log("user1    account           :", await this.signers.user1.getAddress());
 
-    const user1Balance = await ethers.provider.getBalance(this.signers.user1.getAddress());
+    const user1Balance = await ethers.provider.getBalance(this.signers.user1);
     console.log("user1    account balance   :", ethers.formatUnits(user1Balance));
     if (user1Balance < (ethers.parseUnits("1.0"))) {
       console.error("ERROR: Balance too low");
@@ -77,12 +77,12 @@ describe("PolsStake : " + filenameHeader, function () {
       const tx1 = await this.rewardToken.connect(this.signers.admin).transfer(this.stake, amount);
       await tx1.wait();
 
-      expect(await this.rewardToken.balanceOf(this.signers.admin.getAddress())).to.equal(balance - amount);
+      expect(await this.rewardToken.balanceOf(this.signers.admin)).to.equal(balance - amount);
 
       const tx2 = await this.stake.connect(this.signers.admin).removeOtherERC20Tokens(this.rewardToken);
       await tx2.wait();
 
-      expect(await this.rewardToken.balanceOf(this.signers.admin.getAddress())).to.equal(balance);
+      expect(await this.rewardToken.balanceOf(this.signers.admin)).to.equal(balance);
     });
   });
 
