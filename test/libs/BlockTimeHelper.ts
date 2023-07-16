@@ -1,4 +1,4 @@
-import hre from "hardhat";
+import { ethers, network } from "hardhat";
 import { abort } from "process";
 import * as readline from "readline";
 
@@ -10,7 +10,7 @@ const PERIOD_BLOCKCHAIN = 60; // 1 minutes on "real" blockchains
  * @returns timePeriod (interval) used for testing in seconds
  */
 export function timePeriod(): number {
-  return hre.network.name == "hardhat" ? PERIOD_HARDHAT : PERIOD_BLOCKCHAIN;
+  return network.name == "hardhat" ? PERIOD_HARDHAT : PERIOD_BLOCKCHAIN;
 }
 
 export const consoleLog_timestamp = async (t0: number) => {
@@ -21,12 +21,7 @@ export const consoleLog_timestamp = async (t0: number) => {
 
 // console.log a string and a time in human readable format converted to days
 export function logStringTime(text: string, t: number) {
-  console.log(text, (t / timePeriod()).toFixed(3) );
-};
-
-export const logCurrentTimeRelative = async () => {
-  const currentTime = await getTimestamp();
-  logStringTime("current relative time :", currentTime - gTestStartTime);
+  console.log(text, (t / timePeriod()).toFixed(3));
 };
 
 
@@ -34,14 +29,19 @@ export const logCurrentTimeRelative = async () => {
  * @dev helper function to get block.timestamp from hardhat provider
  * @returns block.timestamp in unix epoch time (seconds)
  */
-export const blockTimestamp = async (): Promise<number> => {
-  const blockNumber = await hre.ethers.provider.getBlockNumber();
-  return (await hre.ethers.provider._getBlock(blockNumber)).timestamp;
+const blockTimestamp = async (): Promise<number> => {
+  const blockNumber = await ethers.provider.getBlockNumber();
+  const block = await ethers.provider.getBlock(blockNumber);
+  if (block === null) {
+    return 0
+  } else {
+    return block.timestamp;
+  }
 };
 
 export const getTimestamp = async (): Promise<number> => {
   let currentTime: number;
-  if (hre.network.name == "hardhat") {
+  if (network.name == "hardhat") {
     currentTime = await blockTimestamp();
   } else {
     currentTime = Math.floor(Date.now() / 1000);
@@ -55,10 +55,10 @@ export const getTimestamp = async (): Promise<number> => {
  */
 export const moveTime = async (timeAmount: number): Promise<number> => {
   console.log("Jumping ", timeAmount, "seconds into the future ...");
-  await hre.ethers.provider.send("evm_increaseTime", [timeAmount]);
-  await hre.ethers.provider.send("evm_mine", []);
-  const blockNumber = await hre.ethers.provider.getBlockNumber();
-  const timeNow = (await hre.ethers.provider._getBlock(blockNumber)).timestamp;
+  await ethers.provider.send("evm_increaseTime", [timeAmount]);
+  await ethers.provider.send("evm_mine", []);
+  const blockNumber = await ethers.provider.getBlockNumber();
+  const timeNow = await blockTimestamp();
   console.log("moveTime : timeNow =", timeNow);
   console.log("----------------------------------------------------------------------------");
   return timeNow;
@@ -76,7 +76,7 @@ export const waitTime = async (waitSeconds: number): Promise<number> => {
   }
 
   let newTime: number;
-  if (hre.network.name == "hardhat") {
+  if (network.name == "hardhat") {
     newTime = await moveTime(waitSeconds);
   } else {
     for (let s = waitSeconds; s > 0; s--) {
@@ -100,9 +100,9 @@ export const setTime = async (time: number): Promise<number> => {
   console.log("----------------------------------------------------------------------------");
   console.log("setTime : Jumping to unix time :", time);
 
-  if (hre.network.name == "hardhat") {
-    await hre.ethers.provider.send("evm_setNextBlockTimestamp", [time]);
-    await hre.ethers.provider.send("evm_mine", []);
+  if (network.name == "hardhat") {
+    await ethers.provider.send("evm_setNextBlockTimestamp", [time]);
+    await ethers.provider.send("evm_mine", []);
   } else {
     const now = await getTimestamp();
     await waitTime(time - now);

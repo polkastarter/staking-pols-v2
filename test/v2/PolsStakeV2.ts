@@ -1,16 +1,18 @@
 
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { ethers, network } from "hardhat";
 
 import type { Signers } from "../types";
 import { deployStakeV2Fixture } from "./StakeV2.fixture";
-import { deployStakeV1Fixture } from "../v1/StakeV1.fixture";
+// import { deployStakeV1Fixture } from "../v1/StakeV1.fixture";
+
+import type { PolsStake } from "../../types/contracts/test/PolsStake";
+import type { PolsStake__factory } from "../../types/factories/contracts/test/PolsStake__factory";
 
 import { expect } from "chai";
 import * as path from "path";
 
-import { BigNumber, BigNumberish } from "ethers";
+// import { BigNumber, BigNumberish } from "ethers";
 
 import { timePeriod, getTimestamp, moveTime, waitTime, setTime, consoleLog_timestamp } from "../libs/BlockTimeHelper";
 
@@ -27,37 +29,34 @@ const TIMEOUT_BLOCKCHAIN_ms = 10 * 60 * 1000; // 10 minutes
 
 const filenameHeader = path.basename(__filename).concat(" ").padEnd(80, "=").concat("\n");
 
+let stakeTokenDecimals: bigint; // will be retrieved from stake token contract after deployment
+let stakeAmountDefault: bigint = 250n; // will be multiplied with 10**decimals after deployment of stake token
+
 describe("PolsStake : " + filenameHeader, function () {
   console.log("network name =", network.name);
   if (network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms);
 
   before(async function () {
     this.signers = {} as Signers;
-    const signers: SignerWithAddress[] = await ethers.getSigners();
-    const admin: SignerWithAddress = signers[0];
-    // const user1: SignerWithAddress = signers[1];
-    // const user2: SignerWithAddress = signers[2];
+    const signers = await ethers.getSigners();
     this.signers.admin = signers[0];
     this.signers.user1 = signers[1];
     this.signers.user2 = signers[2];
 
-    const gasPriceString = await ethers.provider.getGasPrice();
-    console.log("Current gas price: " + gasPriceString);
+    console.log("deployer account           :", await this.signers.admin.getAddress());
 
-    console.log("deployer account           :", this.signers.admin.address);
-
-    const deployerBalance = await ethers.provider.getBalance(this.signers.admin.address);
-    console.log("deployer account balance   :", ethers.utils.formatUnits(deployerBalance));
-    if (deployerBalance.lt(ethers.utils.parseUnits("1.0"))) {
+    const deployerBalance = await ethers.provider.getBalance(this.signers.admin);
+    console.log("deployer account balance   :", ethers.formatUnits(deployerBalance));
+    if (deployerBalance < ethers.parseUnits("1.0")) {
       console.error("ERROR: Balance too low");
       process.exit(1);
     }
 
-    console.log("user1    account           :", this.signers.user1.address);
+    console.log("user1    account           :", await this.signers.user1.getAddress());
 
-    const user1Balance = await ethers.provider.getBalance(this.signers.user1.address);
-    console.log("user1    account balance   :", ethers.utils.formatUnits(user1Balance));
-    if (user1Balance.lt(ethers.utils.parseUnits("1.0"))) {
+    const user1Balance = await ethers.provider.getBalance(this.signers.user1);
+    console.log("user1    account balance   :", ethers.formatUnits(user1Balance));
+    if (user1Balance < ethers.parseUnits("1.0")) {
       console.error("ERROR: Balance too low");
       process.exit(1);
     }
@@ -70,9 +69,15 @@ describe("PolsStake : " + filenameHeader, function () {
     this.rewardToken = rewardToken;
     this.stakeV2 = stakeV2;
 
-    console.log("stakeToken        deployed to :", this.stakeToken.address);
-    console.log("rewardToken       deployed to :", this.rewardToken.address);
-    console.log("stake contract V2 deployed to :", this.stakeV2.address);
+    stakeTokenDecimals = await this.stakeToken.decimals();
+    stakeAmountDefault *= 10n ** stakeTokenDecimals;
+
+    console.log("stakeToken        deployed to :", await this.stakeToken.getAddress());
+    console.log("rewardToken       deployed to :", await this.rewardToken.getAddress());
+    console.log("stake contract v2 deployed to :", await this.stakeV2.getAddress());
+
+    console.log("stakeTokenDecimals            :", stakeTokenDecimals);
+    console.log("stakeAmountDefault            :", stakeAmountDefault, " = ", ethers.formatUnits(stakeAmountDefault, stakeTokenDecimals));
   });
   // set to v2 mode
   // lockedRewardsEnabled  = true
@@ -86,18 +91,18 @@ describe("PolsStake : " + filenameHeader, function () {
     if (network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms);
 
     it("a token is accidentally being send directly to staking contract => recover", async function () {
-      const amount = "10" + "0".repeat(18);
-      const balance = await this.rewardToken.balanceOf(this.signers.admin.address);
+      const amount = stakeAmountDefault;
+      const balance = await this.rewardToken.balanceOf(this.signers.admin);
 
-      const tx1 = await this.rewardToken.connect(this.signers.admin).transfer(this.stakeV2.address, amount);
+      const tx1 = await this.rewardToken.connect(this.signers.admin).transfer(this.stakeV2, amount);
       await tx1.wait();
 
-      expect(await this.rewardToken.balanceOf(this.signers.admin.address)).to.equal(balance.sub(amount));
+      expect(await this.rewardToken.balanceOf(this.signers.admin)).to.equal(balance - amount);
 
-      const tx2 = await this.stakeV2.connect(this.signers.admin).removeOtherERC20Tokens(this.rewardToken.address);
+      const tx2 = await this.stakeV2.connect(this.signers.admin).removeOtherERC20Tokens(this.rewardToken);
       await tx2.wait();
 
-      expect(await this.rewardToken.balanceOf(this.signers.admin.address)).to.equal(balance);
+      expect(await this.rewardToken.balanceOf(this.signers.admin)).to.equal(balance);
     });
   });
 
@@ -106,68 +111,75 @@ describe("PolsStake : " + filenameHeader, function () {
     let startTime: number; // time when the test starts
     let timeRelative: number; // will store time relative to start time
     let blocktime: number;
-    let stakeTokenDecimals: number;
-    let stakeBalance = BigNumber.from(0);
-    let difference = BigNumber.from(0);
-    let user1BalanceStart = BigNumber.from(0);
 
-    const stakeAmount: number = 1000;
+    let stakeBalance = 0n;
+    let difference = 0n;
+    let user1BalanceStart = 0n;
+
+    const stakeAmount = stakeAmountDefault;
 
     it("deploy PolsStake v1", async function () {
-      const { stakeToken, rewardToken, stakeV1 } = await this.loadFixture(deployStakeV1Fixture);
+      const stakeV1Factory: PolsStake__factory = <PolsStake__factory>await ethers.getContractFactory("PolsStake");
+      const stakeV1: PolsStake = <PolsStake>await stakeV1Factory.connect(this.signers.admin).deploy(this.stakeToken, 0);
+      await stakeV1.waitForDeployment();
       this.stake = stakeV1;
-      console.log("stakeV1 contract is at       :", this.stakeV2.address);
-      console.log("stakeV2 contract deployed to :", this.stake.address);
+      console.log("stakeV1 contract deployed to :", await this.stake.getAddress());
+      expect(await this.stake.stakingToken()).to.eq(await this.stakeToken.getAddress(),
+        "deployed stake v1 contract does not accept this stake token");
+    });
+
+    it("admin sends some stake token to user1", async function () {
+      const tx1 = await this.stakeToken.connect(this.signers.admin).transfer(this.signers.user1, 4n * stakeAmountDefault);
+      await tx1.wait();
+      expect(await this.stakeToken.balanceOf(this.signers.user1)).to.eq(4n * stakeAmountDefault);
     });
 
     it("user approves stake token for PolsStake v1", async function () {
       startTime = await getTimestamp();
       console.log("startTime =", startTime);
 
-      stakeTokenDecimals = await this.stakeToken.decimals();
+      user1BalanceStart = await this.stakeToken.balanceOf(this.signers.user1);
+      console.log("user1Balance =", ethers.formatUnits(user1BalanceStart, stakeTokenDecimals));
 
-      user1BalanceStart = await this.stakeToken.balanceOf(this.signers.user1.address);
-      console.log("user1Balance =", ethers.utils.formatUnits(user1BalanceStart, stakeTokenDecimals));
-
-      const tx = await this.stakeToken.connect(this.signers.user1).approve(this.stake.address, user1BalanceStart);
+      const tx = await this.stakeToken.connect(this.signers.user1).approve(this.stake, user1BalanceStart);
       await tx.wait();
 
-      const allowance = await this.stakeToken.allowance(this.signers.user1.address, this.stake.address);
-      console.log("user1 approved allowance   =", ethers.utils.formatUnits(allowance, stakeTokenDecimals));
-
-      // at this time the balance of the stake token in the contract should be 0
-      stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
+      const allowance = await this.stakeToken.allowance(this.signers.user1, this.stake);
+      console.log("user1 approved allowance   =", ethers.formatUnits(allowance, stakeTokenDecimals));
       expect(allowance).to.equal(user1BalanceStart, "approval of stake token did not work");
     });
 
     it("staked amount in PolsStake v1 should be 0", async function () {
       // at this time the balance of the stake token in the contract should be 0
-      stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
+      stakeBalance = await this.stake.stakeAmount(this.signers.user1);
       expect(stakeBalance).to.equal(0, "user should have a stake balance of 0");
     });
 
     it("user can stake token in PolsStake v1", async function () {
-      console.log("staking now ... stakeAmount =", ethers.utils.formatUnits(stakeAmount, stakeTokenDecimals));
 
-      const tx = await this.stake.connect(this.signers.user1).stake(stakeAmount);
+      const balanceETH = await ethers.provider.getBalance(this.signers.user1);
+      console.log("user1 balanceETH =", ethers.formatEther(balanceETH));
+
+      console.log("staking now ... stakeAmount =", ethers.formatUnits(stakeAmountDefault, stakeTokenDecimals));
+
+      const allowance = await this.stakeToken.allowance(this.signers.user1, this.stake);
+      console.log("user1 approved allowance   =", ethers.formatUnits(allowance, stakeTokenDecimals));
+
+      const tx = await this.stake.connect(this.signers.user1).stake(stakeAmountDefault);
       await tx.wait();
 
       blocktime = await getTimestamp();
       console.log("blocktime =", blocktime.toString());
-      const stakeTime = await this.stake.connect(this.signers.user1).stakeTime_msgSender();
+      const stakeTime = Number(await this.stake.connect(this.signers.user1).stakeTime_msgSender());
       console.log("stakeTime =", stakeTime.toString());
       expect(Math.abs(blocktime - stakeTime)).lte(60, "stakeTime not within 60 seconds of current blocktime");
 
-      let stakeTime1 = blocktime;
+      const stakeBalance = await this.stake.stakeAmount(this.signers.user1);
+      console.log("stakeBalance =", ethers.formatUnits(stakeBalance, stakeTokenDecimals));
+      expect(stakeBalance).to.equal(stakeAmountDefault, "stake contract does not reflect staked amount");
 
-      stakeBalance = await this.stake.stakeAmount(this.signers.user1.address);
-      console.log("stakeBalance =", ethers.utils.formatUnits(stakeBalance, stakeTokenDecimals));
-      expect(stakeBalance).to.equal(stakeAmount, "stake contract does not reflect staked amount");
-
-      expect(await this.stakeToken.balanceOf(this.signers.user1.address)).to.equal(
-        user1BalanceStart.sub(stakeAmount),
-        "user1 balance was not reduced by staked amount",
-      );
+      expect(await this.stakeToken.balanceOf(this.signers.user1)).to.equal(user1BalanceStart - stakeAmountDefault,
+        "user1 balance was not reduced by staked amount");
 
       // wait until tokens are unlocked
       waitTime(lockPeriod + timePeriod());
@@ -181,40 +193,50 @@ describe("PolsStake : " + filenameHeader, function () {
     it("grant stakeV2 contract the BURNER_ROLE for stake v1 contract", async function () {
       const BURNER_ROLE = await this.stake.BURNER_ROLE();
 
-      const tx1 = await this.stake.connect(this.signers.admin).grantRole(BURNER_ROLE, this.stakeV2.address);
+      const tx1 = await this.stake.connect(this.signers.admin).grantRole(BURNER_ROLE, this.stakeV2);
       await tx1.wait();
 
-      expect(await this.stake.hasRole(BURNER_ROLE, this.stakeV2.address)).to.be.true;
+      expect(await this.stake.hasRole(BURNER_ROLE, this.stakeV2)).to.be.true;
     });
 
     it("set stake1 contract address within stake2", async function () {
-      const tx1 = await this.stakeV2.connect(this.signers.admin).setPrevPolsStaking(this.stake.address);
+      const stakeV1address = await this.stake.getAddress();
+      const tx1 = await this.stakeV2.connect(this.signers.admin).setPrevPolsStaking(stakeV1address);
       await tx1.wait();
 
-      expect(await this.stakeV2.prevPolsStaking()).to.eq(this.stake.address);
+      expect(await this.stakeV2.prevPolsStaking()).to.eq(stakeV1address);
+    });
+
+    it("user approves stake token for PolsStake v2", async function () {
+      const tx = await this.stakeToken.connect(this.signers.user1).approve(this.stakeV2, 2n * stakeAmountDefault);
+      await tx.wait();
+
+      const allowance = await this.stakeToken.allowance(this.signers.user1, this.stakeV2);
+      console.log("user1 approved allowance   =", ethers.formatUnits(allowance, stakeTokenDecimals));
+      expect(allowance).to.equal(2n * stakeAmountDefault, "approval of stake token did not work");
     });
 
     it("user stakes some token in PolsStakeV2", async function () {
-      const userWalletBalance = await this.stakeToken.balanceOf(this.signers.user1.address);
-      const stakeAmountAdd = 2000;
-      const stakeAmount = await this.stakeV2.connect(this.signers.user1).stakeAmount_msgSender();
-      console.log("current staking balance in v2 :", stakeAmount);
+      const userWalletBalance = await this.stakeToken.balanceOf(this.signers.user1);
+      const stakeAmountAdd = stakeAmountDefault;
+      const stakeBalance = await this.stakeV2.connect(this.signers.user1).stakeAmount_msgSender();
+      console.log("current staking balance in v2 :", stakeBalance);
       console.log("now staking additional amount :", stakeAmountAdd);
 
       const tx4 = await this.stakeV2.connect(this.signers.user1).stakelockTimeChoice(stakeAmountAdd, 1);
       await tx4.wait();
 
-      expect(await this.stakeToken.balanceOf(this.signers.user1.address)).to.eq(userWalletBalance.sub(stakeAmountAdd));
+      expect(await this.stakeToken.balanceOf(this.signers.user1)).to.eq(userWalletBalance - stakeAmountAdd);
 
       const stakeAmountFinal = await this.stakeV2.connect(this.signers.user1).stakeAmount_msgSender();
       console.log("final staking balance in v2   :", stakeAmountFinal);
 
-      expect(stakeAmountFinal).to.eq(stakeAmount.add(stakeAmountAdd));
+      expect(stakeAmountFinal).to.eq(stakeBalance + stakeAmountAdd);
     });
 
     it("user1 migrates tokens & accumulated rewards from PolsStake v1 to PolsStakeV2 ", async function () {
       // get user's tokens in his wallet and the previous staking contract
-      const userWalletBalance = await this.stakeToken.balanceOf(this.signers.user1.address);
+      const userWalletBalance = await this.stakeToken.balanceOf(this.signers.user1);
       const stakeAmountPrev = await this.stake.connect(this.signers.user1).stakeAmount_msgSender();
 
       console.log("userWalletBalance    =", userWalletBalance);
@@ -226,13 +248,14 @@ describe("PolsStake : " + filenameHeader, function () {
       await tx1.wait();
 
       expect(await this.stake.connect(this.signers.user1).stakeAmount_msgSender()).to.eq(0);
-      expect(await this.stakeToken.balanceOf(this.signers.user1.address)).to.eq(userWalletBalance.add(stakeAmountPrev));
+      expect(await this.stakeToken.balanceOf(this.signers.user1)).to.eq(userWalletBalance + stakeAmountPrev);
 
       // get current rewards of contracts
-      const claimableRewardsV1 = await this.stake.connect(this.signers.user1).userClaimableRewards_msgSender();
-      const accumulatedRewardsV1 = await this.stake.connect(this.signers.user1).userAccumulatedRewards_msgSender();
-      const accumulatedRewardsV2 = await this.stakeV2.connect(this.signers.user1).userAccumulatedRewards_msgSender();
+      let claimableRewardsV1 = await this.stake.connect(this.signers.user1).userClaimableRewards_msgSender();
+      let accumulatedRewardsV1 = await this.stake.connect(this.signers.user1).userAccumulatedRewards_msgSender();
+      let accumulatedRewardsV2 = await this.stakeV2.connect(this.signers.user1).userAccumulatedRewards_msgSender();
 
+      console.log("Before rewards migration ...");
       console.log("claimableRewardsV1   =", claimableRewardsV1);
       console.log("accumulatedRewardsV1 =", accumulatedRewardsV1);
       console.log("accumulatedRewardsV2 =", accumulatedRewardsV2);
@@ -243,23 +266,31 @@ describe("PolsStake : " + filenameHeader, function () {
       const tx2 = await this.stakeV2.connect(this.signers.user1).migrateRewards();
       await tx2.wait();
 
-      expect(await this.stake.userAccumulatedRewards(this.signers.user1.address)).to.eq(0);
-      expect(await this.stakeV2.userAccumulatedRewards(this.signers.user1.address)).to.eq(
-        accumulatedRewardsV1.add(accumulatedRewardsV2),
-      );
+      expect(await this.stake.userAccumulatedRewards(this.signers.user1)).to.eq(0);
+      expect(await this.stakeV2.userAccumulatedRewards(this.signers.user1)).to.eq(
+        accumulatedRewardsV1 + accumulatedRewardsV2);
 
       // calling migrateRewards a 2nd time should not work and should not add any rewards in stakeV2
       const tx3 = await this.stakeV2.connect(this.signers.user1).migrateRewards();
       await tx3.wait();
 
-      expect(await this.stake.userAccumulatedRewards(this.signers.user1.address)).to.eq(0);
-      expect(await this.stakeV2.userAccumulatedRewards(this.signers.user1.address)).to.eq(
-        accumulatedRewardsV1.add(accumulatedRewardsV2),
-      );
+      expect(await this.stake.userAccumulatedRewards(this.signers.user1)).to.eq(0);
+      expect(await this.stakeV2.userAccumulatedRewards(this.signers.user1)).to.eq(
+        accumulatedRewardsV1 + accumulatedRewardsV2);
 
-      // stake tokens from stake v1 into stakeV2
-      const stakeAmount = await this.stakeV2.connect(this.signers.user1).stakeAmount_msgSender();
-      console.log("current staking balance in v2 :", stakeAmount);
+      claimableRewardsV1 = await this.stake.connect(this.signers.user1).userClaimableRewards_msgSender();
+      accumulatedRewardsV1 = await this.stake.connect(this.signers.user1).userAccumulatedRewards_msgSender();
+      accumulatedRewardsV2 = await this.stakeV2.connect(this.signers.user1).userAccumulatedRewards_msgSender();
+
+      console.log("After rewards migration ...");
+      console.log("claimableRewardsV1   =", claimableRewardsV1);
+      console.log("accumulatedRewardsV1 =", accumulatedRewardsV1);
+      console.log("accumulatedRewardsV2 =", accumulatedRewardsV2);
+      // });
+
+      // it("stake tokens from stake v1 into stakeV2", async function () {
+      const stakeBalance = await this.stakeV2.connect(this.signers.user1).stakeAmount_msgSender();
+      console.log("current staking balance in v2 :", stakeBalance);
       console.log("now staking additional amount :", stakeAmountPrev);
 
       const tx4 = await this.stakeV2.connect(this.signers.user1).stakelockTimeChoice(stakeAmountPrev, 1);
@@ -268,7 +299,8 @@ describe("PolsStake : " + filenameHeader, function () {
       const stakeAmountFinal = await this.stakeV2.connect(this.signers.user1).stakeAmount_msgSender();
       console.log("final staking balance in v2   :", stakeAmountFinal);
 
-      expect(stakeAmountFinal).to.eq(stakeAmount.add(stakeAmountPrev));
+      expect(stakeAmountFinal).to.eq(stakeBalance + stakeAmountPrev);
     });
+
   });
 });
