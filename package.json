@@ -1,5 +1,5 @@
 {
-  "name": "@SvenMeyer/pols-staking-v2",
+  "name": "staking-pols-v2",
   "description": "staking contract with various time lock options and time based upfront rewards",
   "version": "1.0.0",
   "author": {
@@ -78,6 +78,7 @@
     "test": "hardhat test",
     "testV1": "hardhat test test/v1/StakeV1.ts",
     "testV2asV1": "hardhat test test/v2-act-as-v1/StakeV2-act-as-V1.ts",
+    "testV2rewards": "hardhat test test/v2/PolsStakeV2-RewardCalculation.ts",
     "testV2": "hardhat test test/v2/*.ts",
     "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain",
     "audit": "rm -rf artifacts/ && rm -rf cache/ && rm -rf types/ && slither ."
