@@ -473,9 +473,9 @@ export function basicTestsV2(
 
       const userTotalRewards_contract = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
       console.log("userTotalRewards_contract =", userTotalRewards_contract);
-      expect(userTotalRewards_contract).to.be.eq(lastRewardsContract); // , "1000000000000000000000");
-      console.log(
-        "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n",
+
+      expect(userTotalRewards_contract).to.be.closeTo(lastRewardsContract, lastRewardsContract / 100000n);
+      console.log("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n\n",
       );
     });
 

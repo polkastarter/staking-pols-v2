@@ -11,7 +11,7 @@ import type { PolsStake__factory } from "../../types/factories/contracts/test/Po
 import { expect } from "chai";
 import * as path from "path";
 
-import { timePeriod, getTimestamp, moveTime, waitTime, setTime, consoleLog_timestamp } from "../libs/BlockTimeHelper";
+import { timePeriod, getTimestamp, moveTime, waitTime, setTime, /* consoleLog_timestamp */ } from "../libs/BlockTimeHelper";
 
 import { basicTestsV2 } from "./PolsStakeV2.basicTests";
 
@@ -93,8 +93,7 @@ describe(filenameHeader, function () {
    * lockedRewardsEnabled  = true
    * unlockedRewardsFactor = 0.5
    */
-  // basicTestsV2(timePeriod(), true, REWARDS_DIV / 2); // TODO - run test suite !!!
-
+  basicTestsV2(timePeriod(), true, REWARDS_DIV / 2);
 
   /**
    * "accidentally" send a token directly to the contract ... admin can recover them
@@ -147,9 +146,10 @@ describe(filenameHeader, function () {
     });
 
     it("admin sends some stake token to user1", async function () {
+      const balanceBefore = await this.stakeToken.balanceOf(this.signers.user1);
       const tx1 = await this.stakeToken.connect(this.signers.admin).transfer(this.signers.user1, 4n * stakeAmountDefault);
       await tx1.wait();
-      expect(await this.stakeToken.balanceOf(this.signers.user1)).to.eq(4n * stakeAmountDefault);
+      expect(await this.stakeToken.balanceOf(this.signers.user1)).to.eq(balanceBefore + 4n * stakeAmountDefault);
     });
 
     it("user approves stake token for PolsStake v1", async function () {
