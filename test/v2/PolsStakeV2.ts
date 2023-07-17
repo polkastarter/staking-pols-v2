@@ -4,15 +4,12 @@ import { ethers, network } from "hardhat";
 
 import type { Signers } from "../types";
 import { deployStakeV2Fixture } from "./StakeV2.fixture";
-// import { deployStakeV1Fixture } from "../v1/StakeV1.fixture";
 
 import type { PolsStake } from "../../types/contracts/test/PolsStake";
 import type { PolsStake__factory } from "../../types/factories/contracts/test/PolsStake__factory";
 
 import { expect } from "chai";
 import * as path from "path";
-
-// import { BigNumber, BigNumberish } from "ethers";
 
 import { timePeriod, getTimestamp, moveTime, waitTime, setTime, consoleLog_timestamp } from "../libs/BlockTimeHelper";
 
@@ -32,7 +29,7 @@ const filenameHeader = path.basename(__filename).concat(" ").padEnd(80, "=").con
 let stakeTokenDecimals: bigint; // will be retrieved from stake token contract after deployment
 let stakeAmountDefault: bigint = 250n; // will be multiplied with 10**decimals after deployment of stake token
 
-describe("PolsStake : " + filenameHeader, function () {
+describe(filenameHeader, function () {
   console.log("network name =", network.name);
   if (network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms);
 
@@ -79,14 +76,21 @@ describe("PolsStake : " + filenameHeader, function () {
     console.log("stakeTokenDecimals            :", stakeTokenDecimals);
     console.log("stakeAmountDefault            :", stakeAmountDefault, " = ", ethers.formatUnits(stakeAmountDefault, stakeTokenDecimals));
   });
-  // set to v2 mode
-  // lockedRewardsEnabled  = true
-  // unlockedRewardsFactor = 0.5
 
+
+  /**
+   * set to "v2 mode" and run test suite
+   * lockedRewardsEnabled  = true
+   * unlockedRewardsFactor = 0.5
+   */
   // basicTestsV2(timePeriod(), true, REWARDS_DIV / 2); // TODO - run test suite !!!
 
-  // accidentally send a token directly to the contract ... admin can recover them
-  // we (re)use the reward token, but it could be any token, except the stake token
+
+  /**
+   * "accidentally" send a token directly to the contract ... admin can recover them
+   * we (re)use the reward token, but it could be any token, except the stake token
+   */
+
   describe("test removeOtherERC20Tokens()", function () {
     if (network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms);
 
@@ -105,6 +109,10 @@ describe("PolsStake : " + filenameHeader, function () {
       expect(await this.rewardToken.balanceOf(this.signers.admin)).to.equal(balance);
     });
   });
+
+  /**
+   * Test token & rewards migration from PolsStakeV1 to PolsStakeV2
+   */
 
   describe("PolsStake > PolsStakeV2 token & rewards migration", function () {
     let timeNow: number; // number type makes time calculations easier
