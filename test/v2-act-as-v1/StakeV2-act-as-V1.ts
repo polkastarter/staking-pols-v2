@@ -17,7 +17,7 @@ const TIMEOUT_BLOCKCHAIN_ms = 10 * 60 * 1000; // 10 minutes
 
 const filenameHeader = path.basename(__filename).concat(" ").padEnd(80, "=").concat("\n");
 
-describe("PolsStake : " + filenameHeader, function () {
+describe(filenameHeader, function () {
   console.log("network name =", network.name);
   if (network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms);
 
