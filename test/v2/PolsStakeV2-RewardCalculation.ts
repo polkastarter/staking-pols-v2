@@ -38,6 +38,7 @@ const testCases: [Parameter, bigint][] = [
   //  amount, stk , unl, blk, end, lckrew, expectedResult
   // lockedRewardsEnabled = false ----------------------------------------------------------------------------
   [[0n, 10, 20, 12, 100, false, false, REWARDS_DIV], 0n],              // nothing staked
+  [[amount, 10, 20, 10, 100, false, false, REWARDS_DIV], 0n], // staked  0 days within lock period, user_stakeTime == block_timestamp
   [[amount, 10, 20, 12, 100, false, false, REWARDS_DIV], amount * BigInt(2 / 2)], // staked  2 days within lock period
   [[amount, 10, 20, 16, 100, false, false, REWARDS_DIV], amount * BigInt(6 / 2)], // staked  6 days within lock period
   [[amount, 10, 20, 30, 100, false, false, REWARDS_DIV], amount * BigInt(10)], // staked 10 days past unlock time
@@ -58,6 +59,7 @@ const testCases: [Parameter, bigint][] = [
   // lockedRewardsEnabled = true -----------------------------------------------------------------------------
   [[0n, 10, 20, 12, 100, true, false, REWARDS_DIV], 0n],                   // nothing staked
 
+  [[amount, 10, 20, 10, 100, true, false, REWARDS_DIV], amount * BigInt(10)],      // staked  0 days within lock period, user_stakeTime == block_timestamp
   [[amount, 10, 20, 12, 100, true, false, REWARDS_DIV], amount * BigInt(10)],      // staked  2 days within lock period
   [[amount, 10, 20, 12, 100, true, true, REWARDS_DIV], amount * BigInt(2)],      // staked  2 days within lock period
 
