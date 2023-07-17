@@ -451,12 +451,11 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
 
         // case 1) 2) 3)
         // stake time in the future - should never happen - actually an (internal ?) error
+        // user_stakeTime == t0 is a valid case as calculation may be done right after/at staking time
         // require(user_stakeTime <= t0, "INTERNAL ERROR : current blocktime before staketime");
-        if (user_stakeTime >= t0) return 0;
+        if (user_stakeTime > t0) return 0;
 
         // unlockTime before staketime - should never happen - actually an (internal ?) error
-        console_log_time("user_stakeTime  (dd hh mm ss) =", user_stakeTime);
-        console_log_time("user_unlockTime (dd hh mm ss) =", user_unlockTime);
         // require(user_stakeTime <= user_unlockTime, "INTERNAL ERROR : unlockTime before staketime");
         if (user_stakeTime > user_unlockTime) return 0;
 
