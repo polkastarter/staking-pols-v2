@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import "./IPolsStakeMigrate.sol";
 
@@ -67,7 +68,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
     address public immutable stakingToken; // address of token which can be staked into this contract
     address public rewardToken; // address of reward token
     address public prevPolsStaking; // address of previously deployed PolsStaking contract (to migrate rewards from)
-    uint128 public userStakeAmountMax; // maximum amount an account can stake (if 0 => no additional staking possible)
+    uint128 public userStakeAmountMax = 30000 * 10 ** 18; // maximum amount an account can stake (if 0 => no additional staking possible)
 
     /**
      * Using block.timestamp instead of block.number for reward calculation
@@ -111,6 +112,10 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         stakeRewardFactor = 1000 * 1 days; // default : a user has to stake 1000 token for 1 day to receive 1 reward token
         stakeRewardEndTime = uint48(block.timestamp + 366 days); // default : reward scheme ends in 1 year
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
+
+    function getVersion() public pure returns (uint48) {
+        return 20000; // 2.0.0
     }
 
     /**
@@ -205,7 +210,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
      * requires solc >=0.8.12
      * https://docs.soliditylang.org/en/v0.8.12/types.html#the-functions-bytes-concat-and-string-concat
      */
-    
+
     function console_log_time(string memory message, uint256 t) internal view {
         uint256 t_seconds = t % 60;
         t = t / 60;
@@ -231,7 +236,6 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         timeString = string.concat(timeString, t_seconds.toString());
         console.log(message, timeString);
     }
-    
 
     /**
      * External API functions - contract specific
