@@ -1,14 +1,7 @@
 import { ethers, network } from "hardhat";
 
-// https://www.chaijs.com/guide/styles/#expect
-// https://www.chaijs.com/api/bdd/
-// https://ethereum-waffle.readthedocs.io/en/latest/matchers.html
 import { expect } from "chai";
 import * as path from "path";
-
-import { BigNumberish } from "ethers";
-import { Logger } from "@ethersproject/logger";
-import { toUtf8Bytes } from "ethers/lib/utils";
 
 const DECIMALS: number = 18;
 const DECMULBN: bigint = 10n ** BigInt(DECIMALS);
@@ -37,7 +30,7 @@ export function shouldBehaveLikeStakeV2(_timePeriod: number): void {
 
   const filenameHeader = path.basename(__filename).concat(" ").padEnd(80, "=").concat("\n");
 
-  describe("PolsStake : " + filenameHeader, function () {
+  describe(filenameHeader, function () {
     if (network.name != "hardhat") this.timeout(TIMEOUT_BLOCKCHAIN_ms); // setup timeout to 5 min
 
     it("stake token should have 18 decimals", async function () {
@@ -264,6 +257,14 @@ export function shouldBehaveLikeStakeV2(_timePeriod: number): void {
       expect(stakeBalance).to.equal(0, "user should have a stake balance of 0");
     });
 
+    it("admin can execute setUserStakeAmountMax(0)", async function () {
+      const tx = await this.stakeV2.connect(this.signers.admin).setUserStakeAmountMax(0);
+      await tx.wait();
+
+      const result = await this.stakeV2.userStakeAmountMax();
+      expect(result).to.equal(0);
+    });
+
     it("user can not stake if userStakeAmountMax=0", async function () {
       await expect(this.stakeV2.connect(this.signers.user1).stakelockTimeChoice(STAKE_AMOUNT, 1)).to.be.reverted;
     });
@@ -272,7 +273,7 @@ export function shouldBehaveLikeStakeV2(_timePeriod: number): void {
       await expect(this.stakeV2.connect(this.signers.user1).setUserStakeAmountMax(STAKE_AMOUNT_MAX)).to.be.reverted;
     });
 
-    it("admin can execute setUserStakeAmountMax()", async function () {
+    it("admin can execute setUserStakeAmountMax(STAKE_AMOUNT_MAX)", async function () {
       const tx = await this.stakeV2.connect(this.signers.admin).setUserStakeAmountMax(STAKE_AMOUNT_MAX);
       await tx.wait();
 
