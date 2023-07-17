@@ -45,7 +45,7 @@ describe(filenameHeader, function () {
     const deployerBalance = await ethers.provider.getBalance(this.signers.admin);
     console.log("deployer account balance   :", ethers.formatUnits(deployerBalance));
     if (deployerBalance < ethers.parseUnits("1.0")) {
-      console.error("ERROR: Balance too low");
+      console.error("ERROR: ETH Balance too low");
       process.exit(1);
     }
 
@@ -54,7 +54,16 @@ describe(filenameHeader, function () {
     const user1Balance = await ethers.provider.getBalance(this.signers.user1);
     console.log("user1    account balance   :", ethers.formatUnits(user1Balance));
     if (user1Balance < ethers.parseUnits("1.0")) {
-      console.error("ERROR: Balance too low");
+      console.error("ERROR: ETH Balance too low");
+      process.exit(1);
+    }
+
+    console.log("user2    account           :", await this.signers.user2.getAddress());
+
+    const user2Balance = await ethers.provider.getBalance(this.signers.user2);
+    console.log("user2    account balance   :", ethers.formatUnits(user2Balance));
+    if (user2Balance < ethers.parseUnits("1.0")) {
+      console.error("ERROR: ETH Balance too low");
       process.exit(1);
     }
 
@@ -75,6 +84,7 @@ describe(filenameHeader, function () {
 
     console.log("stakeTokenDecimals            :", stakeTokenDecimals);
     console.log("stakeAmountDefault            :", stakeAmountDefault, " = ", ethers.formatUnits(stakeAmountDefault, stakeTokenDecimals));
+    console.log("Test Setup done ------------------------------------------------------------");
   });
 
 
