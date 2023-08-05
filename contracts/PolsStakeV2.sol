@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.17;
+pragma solidity 0.8.20;
 
 import "hardhat/console.sol"; // DEBUG ONLY
-import "@openzeppelin/contracts/utils/Strings.sol"; // DEBUG ONLY
+// import "@openzeppelin/contracts/utils/Strings.sol"; // DEBUG ONLY
 
-// OZ contracts v4.8
-import "@openzeppelin/contracts/access/AccessControl.sol";
+// OZ contracts v4.9.2
+import "@openzeppelin/contracts/access/AccessControlDefaultAdminRules.sol";
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "@openzeppelin/contracts/access/AccessControlCrossChain.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -14,15 +16,28 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import "./IPolsStakeMigrate.sol";
 
-contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
+/**
+ * Resources for AccessControl
+ * https://docs.openzeppelin.com/contracts/4.x/api/access#AccessControlDefaultAdminRules
+ * https://docs.openzeppelin.com/contracts/4.x/api/access#AccessControlCrossChain
+ * https://docs.openzeppelin.com/contracts/4.x/api/access#AccessControlEnumerable
+ */
+
+contract PolsStakeV2 is
+    AccessControlDefaultAdminRules,
+    /* AccessControlEnumerable, */
+    /* AccessControlCrossChain, */
+    Pausable,
+    ReentrancyGuard
+{
     using SafeERC20 for IERC20;
     using Strings for uint256; // DEBUG ONLY
 
     // bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
-    bytes32 public constant ROLE_REWARDS_BURN = keccak256("ROLE_REWARDS_BURN");
-    bytes32 public constant ROLE_REWARDS_MINT = keccak256("ROLE_REWARDS_MINT");
-    bytes32 public constant ROLE_STAKING_PAUSE = keccak256("ROLE_STAKING_PAUSE");
-    bytes32 public constant ROLE_STAKING_UNPAUSE = keccak256("ROLE_STAKING_UNPAUSE");
+    bytes32 public constant REWARDS_BURN_ROLE = keccak256("REWARDS_BURN_ROLE");
+    bytes32 public constant REWARDS_MINT_ROLE = keccak256("REWARDS_MINT_ROLE");
+    bytes32 public constant STAKING_PAUSE_ROLE = keccak256("STAKING_PAUSE_ROLE");
+    bytes32 public constant STAKING_UNPAUSE_ROLE = keccak256("STAKING_UNPAUSE_ROLE");
 
     uint48 public constant MAX_TIME = type(uint48).max; // = 2^48 - 1
     uint32 public constant REWARDS_DIV = 1_000_000;
@@ -98,10 +113,15 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
     uint256 public stakeRewardFactor; // time in seconds * amount of staked token to receive 1 reward token
 
     // new v2 features
-    bool public lockedRewardsEnabled; // upfront rewards for lock period (v1:false, v2:true)
-    uint256 public unlockedRewardsFactor; // rewards multiplier outside lock period (v1:1*REWARDS_DIV , v2:0)
+    bool public lockedRewardsEnabled = true; // upfront rewards for lock period (v1:false, v2:true) - TODO:change to const
+    uint256 public unlockedRewardsFactor = 0; // rewards multiplier outside lock period (v1:1*REWARDS_DIV , v2:0) - TODO:change to const
 
-    constructor(address _stakingToken) {
+    /**
+     *
+     * @param _stakingToken the adress of the token which can be staked - no other token will be accepted by stake function
+     */
+
+    constructor(address _stakingToken) AccessControlDefaultAdminRules(1 days, msg.sender) {
         require(_stakingToken != address(0), "stakingToken.address == 0");
 
         stakingToken = _stakingToken;
@@ -111,7 +131,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         unlockedRewardsFactor = 1 * REWARDS_DIV; // by default (amount * time * 1.0) rewards for staked, but unlocked tokens (like v1)
         stakeRewardFactor = 1000 * 1 days; // default : a user has to stake 1000 token for 1 day to receive 1 reward token
         stakeRewardEndTime = uint48(block.timestamp + 366 days); // default : reward scheme ends in 1 year
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        // _setupRole(DEFAULT_ADMIN_ROLE, msg.sender); // now done by AccessControlDefaultAdminRules(1 days, msg.sender)
     }
 
     function getVersion() public pure returns (uint48) {
@@ -197,11 +217,11 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
      * @return unlockTime remaining time in seconds
      */
     function remainingLockPeriod(address _staker) public view returns (uint48) {
-        uint48 unlockTime = getUnlockTime(_staker);
+        uint256 unlockTime = getUnlockTime(_staker);
         if (unlockTime <= block.timestamp) {
             return 0;
         } else {
-            return unlockTime - toUint48(block.timestamp);
+            return toUint48(unlockTime - block.timestamp);
         }
     }
 
@@ -210,7 +230,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
      * requires solc >=0.8.12
      * https://docs.soliditylang.org/en/v0.8.12/types.html#the-functions-bytes-concat-and-string-concat
      */
-
+    /*
     function console_log_time(string memory message, uint256 t) internal view {
         uint256 t_seconds = t % 60;
         t = t / 60;
@@ -236,6 +256,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         timeString = string.concat(timeString, t_seconds.toString());
         console.log(message, timeString);
     }
+    */
 
     /**
      * External API functions - contract specific
@@ -353,11 +374,12 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
     }
 
     /**
-     * ADMIN_ROLE has to set ROLE_REWARDS_BURN
+     * ADMIN_ROLE has to set REWARDS_BURN_ROLE
      * allows an external (lottery token sale) contract to substract rewards
      */
-    function burnRewards(address _staker, uint256 _amount) external onlyRole(ROLE_REWARDS_BURN) {
-        User storage user = _updateRewards(_staker);
+    function burnRewards(address _staker, uint256 _amount) external onlyRole(REWARDS_BURN_ROLE) {
+        // User storage user = _updateRewards(_staker);
+        User storage user = userMap[msg.sender];
 
         if (_amount < user.accumulatedRewards) {
             user.accumulatedRewards -= _amount; // safe
@@ -368,10 +390,10 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
     }
 
     /**
-     * ADMIN_ROLE has to set ROLE_REWARDS_MINT
+     * ADMIN_ROLE has to set REWARDS_MINT_ROLE
      * allows an external account, contract, or program to add (new) rewards to a staker's account
      */
-    function mintRewards(address _staker, uint256 _amount) external onlyRole(ROLE_REWARDS_MINT) {
+    function mintRewards(address _staker, uint256 _amount) external onlyRole(REWARDS_MINT_ROLE) {
         userMap[_staker].accumulatedRewards += _amount;
         emit RewardsMinted(_staker, _amount);
     }
@@ -447,6 +469,7 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         bool lockedRewardsCurrent,
         uint256 user_stakePeriodRewardFactor
     ) public view returns (uint256) {
+        /*        
         if (user_stakeAmount == 0) return 0; // shortcut if user hasn't even staked anything
 
         // case 1) 2) 3)
@@ -506,8 +529,9 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
             timePeriod = min(t0, endTime) - user_stakeTime; // safe - see conditions above
             rewards = (timePeriod * user_stakeAmount * unlockedRewardsFactor) / REWARDS_DIV;
         }
-
-        return rewards;
+*/
+        // return rewards;
+        return 0;
     }
 
     /**
@@ -560,7 +584,9 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
      *
      *  @return user reference pointer for further processing
      */
+    /*
     function _updateRewards(address _staker) internal returns (User storage user) {
+        
         // calculate reward credits using previous staking amount and previous time period
         // add new reward credits to already accumulated reward credits
         user = userMap[_staker];
@@ -569,60 +595,60 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         // update stake Time to current time (start new reward period)
         // will also reset userClaimableRewards()
         user.stakeTime = toUint48(block.timestamp);
+        
     }
+    */
 
     /**
      * add stake token to staking pool
      * @dev requires the token to be approved for transfer
      * @dev we assume that (our) stake token is not malicious, so no special checks
      * @param _amount of token to be staked , if 0 then just extend lock period
-     * @param lockTimeIndex index to the lockTimePeriod array , if 0 then do not change current unlockTime
+     * @param _lockTimeIndex index to the lockTimePeriod array , if 0 then do not change current unlockTime
      */
-    function _stakelockTimeChoice(uint256 _amount, uint8 lockTimeIndex) internal returns (uint48) {
-        if ((_amount == 0) && (lockTimeIndex == 0)) revert("amount=0 and lockTimeIndex=0");
+    function _stakelockTimeChoice(uint256 _amount, uint8 _lockTimeIndex) internal returns (uint48) {
+        uint256 _lockTimePeriodSeconds = lockTimePeriod[_lockTimeIndex];
 
-        // User storage user = _updateRewards(msg.sender); // update rewards and return reference to user
-        // calculate reward credits using previous staking amount and previous time period
-        // add new reward credits to already accumulated reward credits
+        if ((_amount == 0) && (_lockTimePeriodSeconds == 0)) revert("amount=0 and lockTime=0");
+
         User storage user = userMap[msg.sender];
 
-        // if staking within an existing lock period, then only add rewards until current time
-        // => lockedRewardsCurrent = true
-        user.accumulatedRewards += userClaimableRewardsCurrent(msg.sender, true); // do not take future, locked rewards into account !!!
+        uint256 stakeAmount_new = user.stakeAmount + _amount;
 
-        // update stake Time to current time (start new reward period)
-        // will also reset userClaimableRewards()
-        user.stakeTime = toUint48(block.timestamp);
+        uint256 rewardsNew = user.accumulatedRewards + (_lockTimePeriodSeconds * stakeAmount_new);
 
-        uint48 lockTimePeriodSeconds = lockTimePeriod[lockTimeIndex];
-
-        if (lockTimeIndex > 0) {
-            console.log("lockTimePeriodSeconds =", lockTimePeriodSeconds);
-            uint48 newUserUnlockTime = toUint48(block.timestamp + lockTimePeriodSeconds);
-            require(newUserUnlockTime >= user.unlockTime, "new unlockTime not after current");
-            user.unlockTime = newUserUnlockTime;
-            user.stakePeriodRewardsFactor = lockTimePeriodRewardFactor[lockTimeIndex];
+        uint256 userUnlockTimeOld = user.unlockTime;
+        if (userUnlockTimeOld == 0) {
+            user.unlockTime = toUint48(block.timestamp + _lockTimePeriodSeconds);
         } else {
-            // lockTimeIndex == 0 ("topUp case")
-            // check if we are in a lock period
-            require(block.timestamp < user.unlockTime, "not in a lock period");
+            user.unlockTime = toUint48(userUnlockTimeOld + _lockTimePeriodSeconds);
         }
 
         if (_amount > 0) {
-            uint128 user_stakeAmount = toUint128(user.stakeAmount + _amount);
-            require(user_stakeAmount <= userStakeAmountMax, "max stake amount exceeded");
-            user.stakeAmount = user_stakeAmount;
+            require(stakeAmount_new <= userStakeAmountMax, "max stake amount exceeded");
+
+            if (block.timestamp < userUnlockTimeOld) {
+                rewardsNew += ((userUnlockTimeOld - block.timestamp) * _amount);
+            } else {
+                if (_lockTimePeriodSeconds == 0) revert("_lockTimePeriodSeconds is zero");
+            }
+
+            user.stakeTime = toUint48(block.timestamp);
+
+            user.stakeAmount = toUint128(stakeAmount_new);
             tokenTotalStaked += _amount;
             // using SafeERC20 for IERC20 => will revert in case of error
             IERC20(stakingToken).safeTransferFrom(msg.sender, address(this), _amount);
         }
+
+        user.accumulatedRewards = rewardsNew;
 
         emit Stake(
             msg.sender,
             _amount,
             user.stakeAmount,
             toUint48(block.timestamp),
-            lockTimePeriodSeconds,
+            toUint48(_lockTimePeriodSeconds),
             user.unlockTime
         );
 
@@ -639,14 +665,32 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
 
         User storage user = userMap[msg.sender];
         require(block.timestamp < user.unlockTime, "not in a lock period");
-        uint48 lockTimePeriodSeconds = lockTimePeriod[lockTimeIndex];
-        uint48 newUserUnlockTime = toUint48(block.timestamp + lockTimePeriodSeconds);
+        uint48 _lockTimePeriodSeconds = lockTimePeriod[lockTimeIndex];
+        uint48 newUserUnlockTime = toUint48(block.timestamp + _lockTimePeriodSeconds);
         require(newUserUnlockTime > user.unlockTime, "new unlockTime not after current");
+
+        user.accumulatedRewards += user.stakeAmount * (newUserUnlockTime - user.unlockTime); // mint new rewards
         user.unlockTime = newUserUnlockTime;
 
-        emit Stake(msg.sender, 0, user.stakeAmount, toUint48(block.timestamp), lockTimePeriodSeconds, user.unlockTime);
+        emit Stake(msg.sender, 0, user.stakeAmount, toUint48(block.timestamp), _lockTimePeriodSeconds, user.unlockTime);
         return user.unlockTime;
     }
+
+    /**
+     * top up current stake amount
+     * Actually just the special case of _stakelockTimeChoice(0, lockTimeIndex)
+     * @param _amount added to
+     */
+    // function topUp(uint256 _amount) external returns (uint256) {
+    //     User storage user = userMap[msg.sender];
+    //     require(block.timestamp < user.unlockTime, "not in a lock period");
+    //     uint48 remainingLockTime = toUint48(user.unlockTime - block.timestamp);
+
+    //     user.accumulatedRewards += user.stakeAmount * remainingLockTime; // mint new rewards
+
+    //     emit Stake(msg.sender, 0, user.stakeAmount, toUint48(block.timestamp), 0, user.unlockTime);
+    //     return user.unlockTime;
+    // }
 
     /**
      * Migrate rewards from previous staking contract to this one
@@ -678,7 +722,8 @@ contract PolsStakeV2 is AccessControl, Pausable, ReentrancyGuard {
         require(amount > 0, "staked amount is 0");
         require(block.timestamp > getUnlockTime(msg.sender), "staked tokens are still locked");
 
-        User storage user = _updateRewards(msg.sender); // update rewards and return reference to user
+        User storage user = userMap[msg.sender];
+        // User storage user = _updateRewards(msg.sender); // update rewards and return reference to user
 
         require(amount <= user.stakeAmount, "withdraw amount > staked amount");
         user.stakeAmount -= toUint128(amount);
