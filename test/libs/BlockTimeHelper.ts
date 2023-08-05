@@ -14,21 +14,21 @@ export function timePeriod(): number {
 }
 
 // convert "test time" to "period time" String
-export function elapsedTimeToPeriod(elapsedTime: number | bigint): number {
+export function timeToPeriod(elapsedTime: number | bigint): number {
   const elapsedTimeString = elapsedTime.toString();
   return parseInt(elapsedTimeString) / timePeriod();
 };
 
 // console.log a string and "test time" in human readable format converted to test periods "days"
 export function logStringTime(text: string, elapsedTime: number | bigint) {
-  console.log(text, elapsedTimeToPeriod(elapsedTime).toFixed(3).toString());
+  console.log(text, timeToPeriod(elapsedTime).toFixed(3).toString());
 };
 
 export const consoleLog_timestamp_async = async (testStartTime: number | bigint) => {
   const currentTime = await getTimestamp();
   const testStartTimeString = testStartTime.toString();
   const elapsedTime = currentTime - parseInt(testStartTimeString);
-  console.log("currentTime =", currentTime, "period =", elapsedTimeToPeriod(elapsedTime));
+  console.log("currentTime =", currentTime, "period =", timeToPeriod(elapsedTime));
 };
 
 
