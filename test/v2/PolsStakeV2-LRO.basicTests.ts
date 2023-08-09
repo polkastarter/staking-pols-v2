@@ -647,7 +647,7 @@ export function basicTestsV2(
             expect(remainingLockPeriod_after).to.be.closeTo(remainingLockPeriod, 2);
         });
 
-        it("user can not topUp stake amount after the lockTimePeriod is over", async function () {
+        it("user can not topUp stake amount with zero lock period after the lockTimePeriod is over", async function () {
             timeNow = await waitTime(15 * timePeriod); // wait 15 days
             timeRelative = timeNow - timeStart;
 
@@ -658,12 +658,30 @@ export function basicTestsV2(
             await expect(this.stakeV2.connect(this.signers.user1).topUp(STAKE_AMOUNT)).to.be.reverted;
         });
 
+        it("user can re-lock tokens which are still staked", async function () {
+            const lockTimeOption = 1;
+            const stakedAmount = await this.stakeV2.connect(this.signers.user1).stakeAmount_msgSender();
+            const userTotalRewards_before = await this.stakeV2
+                .connect(this.signers.user1)
+                .userTotalRewards_msgSender();
+
+            await this.stakeV2.connect(this.signers.user1).stakelockTimeChoice(0, lockTimeOption);
+
+            const lockperiod = await this.stakeV2.lockTimePeriod(lockTimeOption);
+
+            const userTotalRewards_after = await this.stakeV2.connect(this.signers.user1).userTotalRewards_msgSender();
+
+            expect(userTotalRewards_after).to.eq(userTotalRewards_before + (stakedAmount * lockperiod))
+        });
+
+
+
         it("user can unstake after the lockTimePeriod is over", async function () {
             const lastStakeBalance = await this.stakeV2.stakeAmount(this.signers.user1.address);
             expect(lastStakeBalance).to.equal(STAKE_AMOUNT * 2n, "staked amount is wrong");
 
-            // timeNow = await waitTime(15 * timePeriod); // wait 10 days
-            // timeRelative = timeNow - timeStart;
+            timeNow = await waitTime(8 * timePeriod); // wait 8 days
+            timeRelative = timeNow - timeStart;
 
             const remainingLockPeriod = await this.stakeV2.connect(this.signers.user1).remainingLockPeriod_msgSender();
             console.log("remainingLockPeriod (sec/days) =", remainingLockPeriod, Number(remainingLockPeriod) / DAYS);
